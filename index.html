@@ -34,6 +34,11 @@ select{-webkit-appearance:none;-moz-appearance:none;appearance:none;background-i
 @keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
 @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
 .row-hover:hover{background:var(--accent-light) !important}
+.drag-handle{cursor:grab;color:var(--ink5);font-size:14px;user-select:none;display:flex;align-items:center;justify-content:center;transition:color .15s}
+.drag-handle:hover{color:var(--ink3)}
+.drag-handle:active{cursor:grabbing}
+.drag-over{border-top:2.5px solid var(--accent) !important;background:var(--accent-light) !important}
+.dragging{opacity:.4}
 </style>
 </head>
 <body>
@@ -139,7 +144,7 @@ function AuthGate({onAuth}){
 }
 
 /* ═══ CONSTANTS ═══ */
-const TEAM=["Abdul Rafay","Abdul Rehman","Adil Sheikh","Ahmad Anjum","Ali Mazhar","Asad Ullah","Hafiz Abdul Manan","Hassan Flowveo","Muhammad Zohaib","Qasim Sardar","Saad Jilani","Saim Iqbal","Shayan","Sohaib Tufail","Yousaf","Zohaib Soraya"];
+const DEFAULT_TEAM=["Abdul Rafay","Abdul Rehman","Adil Sheikh","Ahmad Anjum","Ali Mazhar","Asad Ullah","Hafiz Abdul Manan","Hassan Flowveo","Muhammad Zohaib","Qasim Sardar","Saad Jilani","Saim Iqbal","Shayan","Sohaib Tufail","Yousaf","Zohaib Soraya"];
 const DAYS_LIST=["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
 const OPS_ST=[
   {v:"To Do",c:"var(--ink3)",bg:"var(--ink7)",bd:"var(--ink6)",ic:"○"},
@@ -167,7 +172,7 @@ const SOURCES=["Upwork Job Post","Upwork Invitation","Upwork Search","Repeat Cli
 const PTYPES=["Web Development","Mobile App","Design","Writing","Marketing","Data/AI","Consulting","Other"];
 const PRIOS=["High","Medium","Low"];
 const ACT_TYPES=["Proposal Sent","Client Replied","Follow-up Sent","Call Scheduled","Call Completed","Sample Sent","Contract Discussion","Lost Lead","Won Lead","Note"];
-const SK={ops:"nc-ops-v5",leads:"nc-leads-v5",act:"nc-act-v5"};
+const SK={ops:"nc-ops-v5",leads:"nc-leads-v5",act:"nc-act-v5",team:"nc-team-v1"};
 let _c=Date.now();const uid=()=>`_${_c++}`;
 const today=()=>new Date().toISOString().slice(0,10);
 const dBtw=(a,b)=>{if(!a||!b)return 0;return Math.floor((new Date(b)-new Date(a))/864e5)};
@@ -215,10 +220,26 @@ const DateInp=({value,onChange,warn})=><input type="date" value={value||""} onCh
 const DelBtn=({onClick})=><button onClick={onClick} style={{width:30,height:30,display:"flex",alignItems:"center",justifyContent:"center",borderRadius:"var(--rs)",border:"none",background:"transparent",color:"var(--ink5)",fontSize:14,cursor:"pointer",transition:"all .15s",flexShrink:0}} onMouseEnter={e=>{e.currentTarget.style.background="var(--red-bg)";e.currentTarget.style.color="var(--red)"}} onMouseLeave={e=>{e.currentTarget.style.background="transparent";e.currentTarget.style.color="var(--ink5)"}}>✕</button>;
 const FL={fontSize:10,fontWeight:700,color:"var(--ink4)",textTransform:"uppercase",letterSpacing:".06em",marginBottom:5};
 
+/* ═══ TEAM SELECT WITH ADD NEW ═══ */
+const TeamSel=({value,onChange,team,onAddMember})=>{
+  const handleChange=(e)=>{
+    if(e.target.value==="__add_new__"){
+      const name=prompt("Enter new team member name:");
+      if(name&&name.trim()){onAddMember(name.trim());onChange(name.trim())}
+    } else {onChange(e.target.value)}
+  };
+  return<select value={value||""} onChange={handleChange} style={{width:"100%",padding:"8px 10px",border:"1.5px solid var(--ink6)",borderRadius:"var(--rs)",fontSize:12,fontWeight:value?600:400,outline:"none",cursor:"pointer",background:"var(--surface)",color:value?"var(--ink)":"var(--ink4)"}}>
+    <option value="">Assign...</option>
+    {team.map(m=><option key={m} value={m}>{m}</option>)}
+    <option value="__add_new__" style={{fontWeight:700,color:"#2563eb"}}>+ Add new member...</option>
+  </select>;
+};
+
 /* ═══ DAILY OPS TAB ═══ */
-function DailyOps({toast}){
+function DailyOps({toast,team,onAddMember}){
   const[days,setDays]=useState([]);const[ld,setLd]=useState(false);const[col,setCol]=useState({});
   const[fM,setFM]=useState("");const[fS,setFS]=useState("");const[q,setQ]=useState("");
+  const[dragInfo,setDragInfo]=useState(null);const[dragOver,setDragOver]=useState(null);
   useEffect(()=>{try{setDays(JSON.parse(localStorage.getItem(SK.ops))||D_OPS)}catch{setDays(D_OPS)}setLd(true)},[]);
   useEffect(()=>{if(ld)localStorage.setItem(SK.ops,JSON.stringify(days))},[days,ld]);
   const addDay=()=>{const n=new Date();setDays(p=>[{id:uid(),day:n.toLocaleDateString("en-US",{weekday:"long"}),date:n.toISOString().slice(0,10),tasks:[bTask()]},...p]);toast("New day created")};
@@ -229,15 +250,25 @@ function DailyOps({toast}){
   const addTask=did=>{setDays(p=>p.map(d=>d.id===did?{...d,tasks:[...d.tasks,bTask()]}:d));toast("Task added")};
   const updateTask=(did,tid,f,v)=>setDays(p=>p.map(d=>d.id===did?{...d,tasks:d.tasks.map(t=>t.id===tid?{...t,[f]:v}:t)}:d));
   const deleteTask=(did,tid)=>setDays(p=>p.map(d=>d.id===did?{...d,tasks:d.tasks.filter(t=>t.id!==tid)}:d));
+
+  /* Drag and drop */
+  const onDragStart=(e,dayId,taskId)=>{setDragInfo({dayId,taskId});e.dataTransfer.effectAllowed="move";e.currentTarget.classList.add("dragging")};
+  const onDragEnd=(e)=>{e.currentTarget.classList.remove("dragging");setDragInfo(null);setDragOver(null)};
+  const onDragOverRow=(e,dayId,taskId)=>{e.preventDefault();e.dataTransfer.dropEffect="move";if(dragInfo&&dragInfo.dayId===dayId&&dragInfo.taskId!==taskId){setDragOver({dayId,taskId})}};
+  const onDragLeaveRow=(e)=>{setDragOver(null)};
+  const onDrop=(e,dayId,targetTaskId)=>{e.preventDefault();setDragOver(null);if(!dragInfo||dragInfo.dayId!==dayId)return;
+    setDays(p=>p.map(d=>{if(d.id!==dayId)return d;const tasks=[...d.tasks];const fromIdx=tasks.findIndex(t=>t.id===dragInfo.taskId);const toIdx=tasks.findIndex(t=>t.id===targetTaskId);if(fromIdx<0||toIdx<0||fromIdx===toIdx)return d;const[moved]=tasks.splice(fromIdx,1);tasks.splice(toIdx,0,moved);return{...d,tasks}}));
+    setDragInfo(null);toast("Task reordered")};
+
   const gS=ts=>{const t=ts.length,d=ts.filter(x=>x.status==="Completed").length,h=ts.reduce((s,x)=>s+(parseFloat(x.time)||0),0);return{total:t,done:d,hrs:h}};
   const gs=gS(days.flatMap(d=>d.tasks));
   const mF=t=>{if(fM&&t.member!==fM)return false;if(fS&&t.status!==fS)return false;if(q){const s=q.toLowerCase();return[t.project,t.desc1,t.desc2,t.member].some(x=>(x||"").toLowerCase().includes(s))}return true};
   if(!ld)return null;
-  const gc="2fr 1fr 1.5fr 1fr 1.2fr .55fr .55fr .45fr .75fr 30px";
+  const gc="24px 2fr 1fr 1.5fr 1fr 1.2fr .55fr .55fr .45fr .75fr 30px";
   return<div style={{animation:"fadeIn .3s ease"}}>
     <div style={{padding:"12px 20px",background:"var(--surface)",borderBottom:"1px solid var(--ink6)",display:"flex",gap:10,flexWrap:"wrap",alignItems:"center"}}>
       <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search tasks..." style={{padding:"8px 14px",borderRadius:"var(--r)",border:"1.5px solid var(--ink6)",fontSize:13,width:190,outline:"none",background:"var(--surface2)"}}/>
-      <select value={fM} onChange={e=>setFM(e.target.value)} style={fltSel}><option value="">All Members</option>{TEAM.map(m=><option key={m}>{m}</option>)}</select>
+      <select value={fM} onChange={e=>setFM(e.target.value)} style={fltSel}><option value="">All Members</option>{team.map(m=><option key={m}>{m}</option>)}</select>
       <select value={fS} onChange={e=>setFS(e.target.value)} style={fltSel}><option value="">All Status</option>{OPS_ST.map(s=><option key={s.v}>{s.v}</option>)}</select>
       <div style={{flex:1}}/><span style={{fontSize:12,color:"var(--ink3)",fontWeight:600}}>{gs.total} tasks</span>
       {gs.done>0&&<Badge c="var(--green)" bg="var(--green-bg)" bd="var(--green-bd)">{gs.done} done</Badge>}
@@ -264,12 +295,19 @@ function DailyOps({toast}){
             </div>
           </div>
           {!isC&&<div style={{overflowX:"auto",padding:"4px 10px 12px"}}>
-            <div style={{display:"grid",gridTemplateColumns:gc,gap:6,padding:"8px 4px 6px",borderBottom:"2px solid var(--ink7)",minWidth:1000}}>
+            <div style={{display:"grid",gridTemplateColumns:gc,gap:6,padding:"8px 4px 6px",borderBottom:"2px solid var(--ink7)",minWidth:1030}}>
+              <div/>
               {["Project & Client","Team Member","Description","Notes","Status","Trello","Nifty","Hrs","Milestone",""].map(h=><div key={h} style={{fontSize:10,fontWeight:700,color:"var(--ink4)",textTransform:"uppercase",letterSpacing:".05em"}}>{h}</div>)}
             </div>
-            {ft.map((t,i)=><div key={t.id} className="row-hover" style={{display:"grid",gridTemplateColumns:gc,gap:6,padding:"6px 4px",borderBottom:"1px solid var(--ink7)",alignItems:"center",minWidth:1000,background:i%2?"var(--surface2)":"var(--surface)"}}>
+            {ft.map((t,i)=>{const isDO=dragOver&&dragOver.dayId===day.id&&dragOver.taskId===t.id;
+              return<div key={t.id} draggable className={`row-hover${isDO?" drag-over":""}`}
+                onDragStart={e=>onDragStart(e,day.id,t.id)} onDragEnd={onDragEnd}
+                onDragOver={e=>onDragOverRow(e,day.id,t.id)} onDragLeave={onDragLeaveRow}
+                onDrop={e=>onDrop(e,day.id,t.id)}
+                style={{display:"grid",gridTemplateColumns:gc,gap:6,padding:"6px 4px",borderBottom:"1px solid var(--ink7)",alignItems:"center",minWidth:1030,background:i%2?"var(--surface2)":"var(--surface)",transition:"background .1s,opacity .2s,border-top .15s"}}>
+              <div className="drag-handle" title="Drag to reorder">⠿</div>
               <Inp value={t.project} onChange={v=>updateTask(day.id,t.id,"project",v)} ph="Project..." bold/>
-              <Sel value={t.member} onChange={v=>updateTask(day.id,t.id,"member",v)} options={TEAM} ph="Assign..."/>
+              <TeamSel value={t.member} onChange={v=>updateTask(day.id,t.id,"member",v)} team={team} onAddMember={onAddMember}/>
               <Inp value={t.desc1} onChange={v=>updateTask(day.id,t.id,"desc1",v)} ph="Task details..."/>
               <Inp value={t.desc2} onChange={v=>updateTask(day.id,t.id,"desc2",v)} ph="Notes..."/>
               <Sel value={t.status} onChange={v=>updateTask(day.id,t.id,"status",v)} options={OPS_ST} ph="Status..." sty={OPS_ST}/>
@@ -278,7 +316,7 @@ function DailyOps({toast}){
               <Inp value={t.time} onChange={v=>updateTask(day.id,t.id,"time",v)} ph="0" small mono/>
               <Inp value={t.milestone} onChange={v=>updateTask(day.id,t.id,"milestone",v)} ph="—" small/>
               <DelBtn onClick={()=>deleteTask(day.id,t.id)}/>
-            </div>)}
+            </div>})}
             {ft.length===0&&<div style={{padding:20,textAlign:"center",color:"var(--ink4)",fontSize:13}}>No tasks match</div>}
             <button onClick={()=>addTask(day.id)} style={addTBtn} onMouseEnter={e=>{e.currentTarget.style.borderColor="var(--accent)";e.currentTarget.style.background="var(--accent-light)"}} onMouseLeave={e=>{e.currentTarget.style.borderColor="var(--ink6)";e.currentTarget.style.background="var(--surface2)"}}>+ Add Task</button>
           </div>}
@@ -288,7 +326,7 @@ function DailyOps({toast}){
 }
 
 /* ═══ LEADS TAB ═══ */
-function LeadsTab({toast}){
+function LeadsTab({toast,team,onAddMember}){
   const[leads,setLeads]=useState([]);const[acts,setActs]=useState([]);const[ld,setLd]=useState(false);
   const[view,setView]=useState("cards");const[fS,setFS]=useState("");const[fP,setFP]=useState("");const[q,setQ]=useState("");
   const[expanded,setExpanded]=useState({});
@@ -418,7 +456,13 @@ function App(){
   const[checking,setChecking]=useState(true);
   const[tab,setTab]=useState("ops");
   const[toast,setToast]=useState(null);
+  const[team,setTeam]=useState([]);
   const st=m=>{setToast(m);setTimeout(()=>setToast(null),2200)};
+
+  // Load team from localStorage
+  useEffect(()=>{try{const saved=JSON.parse(localStorage.getItem(SK.team));setTeam(saved&&saved.length?saved:DEFAULT_TEAM)}catch{setTeam(DEFAULT_TEAM)}},[]);
+  useEffect(()=>{if(team.length)localStorage.setItem(SK.team,JSON.stringify(team))},[team]);
+  const addMember=(name)=>{if(!team.includes(name)){const updated=[...team,name].sort();setTeam(updated);st(`${name} added to team`)}};
 
   // Check existing session on load
   useEffect(()=>{
@@ -439,9 +483,9 @@ function App(){
     st("Signed out");
   };
 
-  const expAll=()=>{const d={ops:JSON.parse(localStorage.getItem(SK.ops)||"[]"),leads:JSON.parse(localStorage.getItem(SK.leads)||"[]"),act:JSON.parse(localStorage.getItem(SK.act)||"[]")};const b=new Blob([JSON.stringify(d,null,2)],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="niftycode-backup.json";a.click();st("Backup downloaded")};
-  const impAll=()=>{const i=document.createElement("input");i.type="file";i.accept=".json";i.onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{try{const d=JSON.parse(ev.target.result);if(d.ops)localStorage.setItem(SK.ops,JSON.stringify(d.ops));if(d.leads)localStorage.setItem(SK.leads,JSON.stringify(d.leads));if(d.act)localStorage.setItem(SK.act,JSON.stringify(d.act));window.location.reload()}catch{alert("Invalid file")}};r.readAsText(f)};i.click()};
-  const resetAll=()=>{if(confirm("Reset everything?")){localStorage.removeItem(SK.ops);localStorage.removeItem(SK.leads);localStorage.removeItem(SK.act);window.location.reload()}};
+  const expAll=()=>{const d={ops:JSON.parse(localStorage.getItem(SK.ops)||"[]"),leads:JSON.parse(localStorage.getItem(SK.leads)||"[]"),act:JSON.parse(localStorage.getItem(SK.act)||"[]"),team:JSON.parse(localStorage.getItem(SK.team)||"[]")};const b=new Blob([JSON.stringify(d,null,2)],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="niftycode-backup.json";a.click();st("Backup downloaded")};
+  const impAll=()=>{const i=document.createElement("input");i.type="file";i.accept=".json";i.onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{try{const d=JSON.parse(ev.target.result);if(d.ops)localStorage.setItem(SK.ops,JSON.stringify(d.ops));if(d.leads)localStorage.setItem(SK.leads,JSON.stringify(d.leads));if(d.act)localStorage.setItem(SK.act,JSON.stringify(d.act));if(d.team)localStorage.setItem(SK.team,JSON.stringify(d.team));window.location.reload()}catch{alert("Invalid file")}};r.readAsText(f)};i.click()};
+  const resetAll=()=>{if(confirm("Reset everything?")){localStorage.removeItem(SK.ops);localStorage.removeItem(SK.leads);localStorage.removeItem(SK.act);localStorage.removeItem(SK.team);window.location.reload()}};
 
   // Loading state
   if(checking)return<div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"var(--navy)",color:"var(--ink4)",fontSize:14,fontWeight:600}}>Loading...</div>;
@@ -472,7 +516,7 @@ function App(){
         </div>
       </div>
     </header>
-    {tab==="ops"?<DailyOps toast={st}/>:<LeadsTab toast={st}/>}
+    {tab==="ops"?<DailyOps toast={st} team={team} onAddMember={addMember}/>:<LeadsTab toast={st} team={team} onAddMember={addMember}/>}
   </div>;
 }
 
