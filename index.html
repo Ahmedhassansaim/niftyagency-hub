@@ -35,109 +35,89 @@ select{-webkit-appearance:none;-moz-appearance:none;appearance:none;background-i
 @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
 .row-hover:hover{background:var(--accent-light) !important}
 .drag-handle{cursor:grab;color:var(--ink5);font-size:14px;user-select:none;display:flex;align-items:center;justify-content:center;transition:color .15s}
-.drag-handle:hover{color:var(--ink3)}
-.drag-handle:active{cursor:grabbing}
+.drag-handle:hover{color:var(--ink3)}.drag-handle:active{cursor:grabbing}
 .drag-over{border-top:2.5px solid var(--accent) !important;background:var(--accent-light) !important}
 .dragging{opacity:.4}
+.sync-dot{width:8px;height:8px;border-radius:99px;display:inline-block;margin-right:6px}
 </style>
 </head>
 <body>
 <div id="root"></div>
 <script type="text/babel">
-const{useState,useEffect,useRef}=React;
+const{useState,useEffect,useRef,useCallback}=React;
 
-/* ═══ SUPABASE CLIENT ═══ */
-const SUPABASE_URL="https://wsqstdrbfczpfaoozwvj.supabase.co";
-const SUPABASE_ANON="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndzcXN0ZHJiZmN6cGZhb296d3ZqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0NDE2OTUsImV4cCI6MjA5MjAxNzY5NX0.FVYtJNd19gWtHmSodznRTe2CiIgPtIeSO__1xOqXO8E";
-const supabase=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON);
+/* ═══ SUPABASE ═══ */
+const SB_URL="https://wsqstdrbfczpfaoozwvj.supabase.co";
+const SB_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndzcXN0ZHJiZmN6cGZhb296d3ZqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0NDE2OTUsImV4cCI6MjA5MjAxNzY5NX0.FVYtJNd19gWtHmSodznRTe2CiIgPtIeSO__1xOqXO8E";
+const sb=window.supabase.createClient(SB_URL,SB_KEY);
 
-/* ═══════════════════════════════════════════════════════ */
-/*                AUTH GATE COMPONENT                    */
-/* ═══════════════════════════════════════════════════════ */
+/* ═══ SHARED DATA HOOK — reads/writes to Supabase ═══ */
+function useSharedData(key,defaultVal){
+  const[data,setData]=useState(null);
+  const[loaded,setLoaded]=useState(false);
+  const[syncing,setSyncing]=useState(false);
+  const saveTimer=useRef(null);
+  const isFirst=useRef(true);
+
+  // Load from Supabase on mount
+  useEffect(()=>{
+    let cancelled=false;
+    (async()=>{
+      const{data:row}=await sb.from("shared_store").select("value").eq("key",key).single();
+      if(!cancelled){
+        if(row&&row.value){setData(row.value)}
+        else{setData(defaultVal);/* seed default */await sb.from("shared_store").upsert({key,value:defaultVal})}
+        setLoaded(true);
+      }
+    })();
+    return()=>{cancelled=true};
+  },[key]);
+
+  // Debounced save to Supabase when data changes
+  useEffect(()=>{
+    if(!loaded)return;
+    if(isFirst.current){isFirst.current=false;return}
+    if(saveTimer.current)clearTimeout(saveTimer.current);
+    saveTimer.current=setTimeout(async()=>{
+      setSyncing(true);
+      await sb.from("shared_store").upsert({key,value:data});
+      setSyncing(false);
+    },800);
+    return()=>{if(saveTimer.current)clearTimeout(saveTimer.current)};
+  },[data,loaded]);
+
+  return[data,setData,loaded,syncing];
+}
+
+/* ═══ AUTH GATE ═══ */
 function AuthGate({onAuth}){
-  const[mode,setMode]=useState("login"); // login | forgot
-  const[email,setEmail]=useState("");
-  const[password,setPassword]=useState("");
-  const[loading,setLoading]=useState(false);
-  const[error,setError]=useState("");
-  const[success,setSuccess]=useState("");
-
-  const handleLogin=async(e)=>{
-    e.preventDefault();setError("");setLoading(true);
-    const{data,error:err}=await supabase.auth.signInWithPassword({email,password});
-    setLoading(false);
-    if(err){setError(err.message);return}
-    onAuth(data.user);
-  };
-
-  const handleForgot=async(e)=>{
-    e.preventDefault();setError("");setSuccess("");setLoading(true);
-    const{error:err}=await supabase.auth.resetPasswordForEmail(email,{redirectTo:window.location.origin});
-    setLoading(false);
-    if(err){setError(err.message);return}
-    setSuccess("Password reset link sent! Check your email.");
-  };
-
+  const[mode,setMode]=useState("login");
+  const[email,setEmail]=useState("");const[password,setPassword]=useState("");
+  const[loading,setLoading]=useState(false);const[error,setError]=useState("");const[success,setSuccess]=useState("");
+  const handleLogin=async(e)=>{e.preventDefault();setError("");setLoading(true);const{data,error:err}=await sb.auth.signInWithPassword({email,password});setLoading(false);if(err){setError(err.message);return}onAuth(data.user)};
+  const handleForgot=async(e)=>{e.preventDefault();setError("");setSuccess("");setLoading(true);const{error:err}=await sb.auth.resetPasswordForEmail(email,{redirectTo:window.location.origin});setLoading(false);if(err){setError(err.message);return}setSuccess("Reset link sent! Check email.")};
   return(
     <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"linear-gradient(135deg,#0f172a 0%,#1a2e4a 40%,#0f172a 100%)",padding:20}}>
-      {/* Floating decoration */}
       <div style={{position:"fixed",top:"15%",left:"10%",width:200,height:200,borderRadius:"50%",background:"rgba(59,130,246,.08)",filter:"blur(60px)",animation:"float 6s ease-in-out infinite"}}/>
-      <div style={{position:"fixed",bottom:"20%",right:"15%",width:250,height:250,borderRadius:"50%",background:"rgba(99,102,241,.06)",filter:"blur(80px)",animation:"float 8s ease-in-out infinite 2s"}}/>
-
       <div style={{width:"100%",maxWidth:420,animation:"fadeIn .4s ease"}}>
-        {/* Logo */}
         <div style={{textAlign:"center",marginBottom:36}}>
           <div style={{width:56,height:56,borderRadius:14,background:"linear-gradient(135deg,#3b82f6,#1d4ed8)",display:"inline-flex",alignItems:"center",justifyContent:"center",fontWeight:800,color:"#fff",fontSize:24,marginBottom:16,boxShadow:"0 8px 32px rgba(37,99,235,.3)"}}>N</div>
-          <div style={{color:"#fff",fontSize:24,fontWeight:800,letterSpacing:"-.03em"}}>NiftyCode</div>
+          <div style={{color:"#fff",fontSize:24,fontWeight:800}}>NiftyCode</div>
           <div style={{color:"var(--accent-border)",fontSize:13,fontWeight:500,marginTop:4}}>Agency Operations Hub</div>
         </div>
-
-        {/* Card */}
-        <div style={{background:"var(--surface)",borderRadius:16,padding:"36px 32px",boxShadow:"0 20px 60px rgba(0,0,0,.3)",border:"1px solid rgba(255,255,255,.06)"}}>
-          <h2 style={{fontSize:20,fontWeight:800,marginBottom:4,color:"var(--ink)"}}>
-            {mode==="login"?"Welcome back":"Reset password"}
-          </h2>
-          <p style={{fontSize:13,color:"var(--ink3)",marginBottom:24}}>
-            {mode==="login"?"Sign in to access your dashboard":"We'll send you a reset link"}
-          </p>
-
+        <div style={{background:"var(--surface)",borderRadius:16,padding:"36px 32px",boxShadow:"0 20px 60px rgba(0,0,0,.3)"}}>
+          <h2 style={{fontSize:20,fontWeight:800,marginBottom:4}}>{mode==="login"?"Welcome back":"Reset password"}</h2>
+          <p style={{fontSize:13,color:"var(--ink3)",marginBottom:24}}>{mode==="login"?"Sign in to access your dashboard":"We'll send you a reset link"}</p>
           {error&&<div style={{padding:"10px 14px",borderRadius:"var(--rs)",background:"var(--red-bg)",border:"1px solid var(--red-bd)",color:"var(--red)",fontSize:12,fontWeight:600,marginBottom:16}}>{error}</div>}
           {success&&<div style={{padding:"10px 14px",borderRadius:"var(--rs)",background:"var(--green-bg)",border:"1px solid var(--green-bd)",color:"var(--green)",fontSize:12,fontWeight:600,marginBottom:16}}>{success}</div>}
-
           <form onSubmit={mode==="login"?handleLogin:handleForgot}>
-            {/* Email */}
-            <div style={{marginBottom:16}}>
-              <label style={{display:"block",fontSize:11,fontWeight:700,color:"var(--ink3)",textTransform:"uppercase",letterSpacing:".06em",marginBottom:6}}>Email Address</label>
-              <input type="email" value={email} onChange={e=>setEmail(e.target.value)} required placeholder="you@company.com" style={{width:"100%",padding:"12px 14px",borderRadius:"var(--rs)",border:"1.5px solid var(--ink6)",fontSize:14,outline:"none",background:"var(--surface2)",transition:"border .2s"}} onFocus={e=>e.target.style.borderColor="var(--accent)"} onBlur={e=>e.target.style.borderColor="var(--ink6)"}/>
-            </div>
-
-            {/* Password (not on forgot) */}
-            {mode!=="forgot"&&<div style={{marginBottom:20}}>
-              <label style={{display:"block",fontSize:11,fontWeight:700,color:"var(--ink3)",textTransform:"uppercase",letterSpacing:".06em",marginBottom:6}}>Password</label>
-              <input type="password" value={password} onChange={e=>setPassword(e.target.value)} required minLength={6} placeholder="••••••••" style={{width:"100%",padding:"12px 14px",borderRadius:"var(--rs)",border:"1.5px solid var(--ink6)",fontSize:14,outline:"none",background:"var(--surface2)",transition:"border .2s"}} onFocus={e=>e.target.style.borderColor="var(--accent)"} onBlur={e=>e.target.style.borderColor="var(--ink6)"}/>
-            </div>}
-
-            {/* Forgot link (on login only) */}
-            {mode==="login"&&<div style={{textAlign:"right",marginTop:-12,marginBottom:16}}>
-              <button type="button" onClick={()=>{setMode("forgot");setError("");setSuccess("")}} style={{background:"none",border:"none",color:"var(--accent)",fontSize:12,fontWeight:600,cursor:"pointer",padding:0}}>Forgot password?</button>
-            </div>}
-
-            {/* Submit */}
-            <button type="submit" disabled={loading} style={{width:"100%",padding:"13px",borderRadius:"var(--rs)",border:"none",background:loading?"var(--ink5)":"linear-gradient(135deg,var(--accent),var(--accent2))",color:"#fff",fontSize:14,fontWeight:700,cursor:loading?"wait":"pointer",transition:"opacity .2s",boxShadow:"0 4px 16px rgba(37,99,235,.3)",letterSpacing:"-.01em"}}>
-              {loading?"Please wait..."
-                :mode==="login"?"Sign In"
-                :"Send Reset Link"}
-            </button>
+            <div style={{marginBottom:16}}><label style={{display:"block",fontSize:11,fontWeight:700,color:"var(--ink3)",textTransform:"uppercase",letterSpacing:".06em",marginBottom:6}}>Email Address</label><input type="email" value={email} onChange={e=>setEmail(e.target.value)} required placeholder="you@company.com" style={{width:"100%",padding:"12px 14px",borderRadius:"var(--rs)",border:"1.5px solid var(--ink6)",fontSize:14,outline:"none",background:"var(--surface2)"}}/></div>
+            {mode!=="forgot"&&<div style={{marginBottom:20}}><label style={{display:"block",fontSize:11,fontWeight:700,color:"var(--ink3)",textTransform:"uppercase",letterSpacing:".06em",marginBottom:6}}>Password</label><input type="password" value={password} onChange={e=>setPassword(e.target.value)} required minLength={6} placeholder="••••••••" style={{width:"100%",padding:"12px 14px",borderRadius:"var(--rs)",border:"1.5px solid var(--ink6)",fontSize:14,outline:"none",background:"var(--surface2)"}}/></div>}
+            {mode==="login"&&<div style={{textAlign:"right",marginTop:-12,marginBottom:16}}><button type="button" onClick={()=>{setMode("forgot");setError("");setSuccess("")}} style={{background:"none",border:"none",color:"var(--accent)",fontSize:12,fontWeight:600,cursor:"pointer"}}>Forgot password?</button></div>}
+            <button type="submit" disabled={loading} style={{width:"100%",padding:"13px",borderRadius:"var(--rs)",border:"none",background:loading?"var(--ink5)":"linear-gradient(135deg,var(--accent),var(--accent2))",color:"#fff",fontSize:14,fontWeight:700,cursor:loading?"wait":"pointer",boxShadow:"0 4px 16px rgba(37,99,235,.3)"}}>{loading?"Please wait...":mode==="login"?"Sign In":"Send Reset Link"}</button>
           </form>
-
-          {/* Footer */}
-          <div style={{textAlign:"center",marginTop:20,fontSize:13,color:"var(--ink3)"}}>
-            {mode==="forgot"?<button type="button" onClick={()=>{setMode("login");setError("");setSuccess("")}} style={{background:"none",border:"none",color:"var(--accent)",fontWeight:700,cursor:"pointer",fontSize:13}}>← Back to Sign In</button>
-            :<span style={{fontSize:12}}>Need access? Ask your admin to invite you.</span>}
-          </div>
+          <div style={{textAlign:"center",marginTop:20,fontSize:13,color:"var(--ink3)"}}>{mode==="forgot"?<button type="button" onClick={()=>{setMode("login");setError("");setSuccess("")}} style={{background:"none",border:"none",color:"var(--accent)",fontWeight:700,cursor:"pointer",fontSize:13}}>← Back to Sign In</button>:<span style={{fontSize:12}}>Need access? Ask your admin to invite you.</span>}</div>
         </div>
-
-        <div style={{textAlign:"center",marginTop:20,fontSize:11,color:"rgba(255,255,255,.25)"}}>Secured by Supabase Auth</div>
       </div>
     </div>
   );
@@ -147,15 +127,14 @@ function AuthGate({onAuth}){
 const DEFAULT_TEAM=["Abdul Rafay","Abdul Rehman","Adil Sheikh","Ahmad Anjum","Ali Mazhar","Asad Ullah","Hafiz Abdul Manan","Hassan Flowveo","Muhammad Zohaib","Qasim Sardar","Saad Jilani","Saim Iqbal","Shayan","Sohaib Tufail","Yousaf","Zohaib Soraya"];
 const DAYS_LIST=["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
 const OPS_ST=[
-  {v:"To Do",c:"var(--ink3)",bg:"var(--ink7)",bd:"var(--ink6)",ic:"○"},
-  {v:"In Progress",c:"var(--accent2)",bg:"var(--accent-light)",bd:"var(--accent-border)",ic:"◔"},
-  {v:"Submitted, Review Requested",c:"var(--orange)",bg:"var(--orange-bg)",bd:"var(--orange-bd)",ic:"◉"},
-  {v:"Completed",c:"var(--green)",bg:"var(--green-bg)",bd:"var(--green-bd)",ic:"✓"},
-  {v:"Carry Forward",c:"var(--amber)",bg:"var(--amber-bg)",bd:"var(--amber-bd)",ic:"⤳"},
-  {v:"Blocked",c:"var(--red)",bg:"var(--red-bg)",bd:"var(--red-bd)",ic:"✕"},
-  {v:"On Hold",c:"var(--purple)",bg:"var(--purple-bg)",bd:"var(--purple-bd)",ic:"❚❚"},
+  {v:"To Do",c:"var(--ink3)",bg:"var(--ink7)",bd:"var(--ink6)"},
+  {v:"In Progress",c:"var(--accent2)",bg:"var(--accent-light)",bd:"var(--accent-border)"},
+  {v:"Submitted, Review Requested",c:"var(--orange)",bg:"var(--orange-bg)",bd:"var(--orange-bd)"},
+  {v:"Completed",c:"var(--green)",bg:"var(--green-bg)",bd:"var(--green-bd)"},
+  {v:"Carry Forward",c:"var(--amber)",bg:"var(--amber-bg)",bd:"var(--amber-bd)"},
+  {v:"Blocked",c:"var(--red)",bg:"var(--red-bg)",bd:"var(--red-bd)"},
+  {v:"On Hold",c:"var(--purple)",bg:"var(--purple-bg)",bd:"var(--purple-bd)"},
 ];
-const getOS=v=>OPS_ST.find(s=>s.v===v);
 const LEAD_ST=[
   {v:"New",c:"var(--ink3)",bg:"var(--ink7)",bd:"var(--ink6)",p:20},
   {v:"Contacted",c:"var(--cyan)",bg:"var(--cyan-bg)",bd:"var(--cyan-bd)",p:30},
@@ -172,7 +151,6 @@ const SOURCES=["Upwork Job Post","Upwork Invitation","Upwork Search","Direct Mes
 const PTYPES=["Web Development","Mobile App","Design","Writing","Marketing","Data/AI","Consulting","Other"];
 const PRIOS=["High","Medium","Low"];
 const ACT_TYPES=["Proposal Sent","Client Replied","Follow-up Sent","Call Scheduled","Call Completed","Sample Sent","Contract Discussion","Lost Lead","Won Lead","Note"];
-const SK={ops:"nc-ops-v5",leads:"nc-leads-v5",act:"nc-act-v5",team:"nc-team-v1"};
 let _c=Date.now();const uid=()=>`_${_c++}`;
 const today=()=>new Date().toISOString().slice(0,10);
 const dBtw=(a,b)=>{if(!a||!b)return 0;return Math.floor((new Date(b)-new Date(a))/864e5)};
@@ -180,97 +158,61 @@ const fmtD=d=>{if(!d)return"—";try{return new Date(d+"T00:00:00").toLocaleDate
 const fmtM=n=>n?`$${Number(n).toLocaleString()}`:"—";
 const bTask=()=>({id:uid(),project:"",member:"",desc1:"",desc2:"",status:"To Do",trello:"",nifty:"",time:"",milestone:""});
 
-/* ═══ DEFAULT DATA ═══ */
+/* Default data */
 const D_OPS=[{id:"d1",day:"Thursday",date:"2026-04-16",tasks:[
   {id:"t1",project:"Amro Al Hasan - House Moving Engine",member:"Hafiz Abdul Manan",desc1:"Need to see logic of external lift",desc2:"",status:"In Progress",trello:"",nifty:"",time:"",milestone:""},
   {id:"t2",project:"Shelbyville",member:"Abdul Rehman",desc1:"",desc2:"",status:"In Progress",trello:"",nifty:"",time:"",milestone:""},
   {id:"t3",project:"Arbor Infusion",member:"Zohaib Soraya",desc1:"",desc2:"",status:"To Do",trello:"",nifty:"",time:"",milestone:""},
   {id:"t4",project:"Google Sheets Automation",member:"Hassan Flowveo",desc1:"Shared email copies",desc2:"",status:"In Progress",trello:"",nifty:"",time:"",milestone:""},
   {id:"t5",project:"Don Ducre",member:"Shayan",desc1:"",desc2:"",status:"In Progress",trello:"",nifty:"",time:"4",milestone:""},
-  {id:"t6",project:"Park Asset Management",member:"",desc1:"No task",desc2:"",status:"On Hold",trello:"",nifty:"",time:"",milestone:""},
-  {id:"t7",project:"Lindsay Rehman",member:"Ali Mazhar",desc1:"Carry forward",desc2:"",status:"Carry Forward",trello:"",nifty:"",time:"",milestone:""},
-  {id:"t8",project:"Matthew",member:"Ahmad Anjum",desc1:"Search issue",desc2:"",status:"In Progress",trello:"",nifty:"",time:"1",milestone:""},
-  {id:"t9",project:"Kompagnon",member:"",desc1:"",desc2:"",status:"To Do",trello:"",nifty:"",time:"",milestone:""},
-  {id:"t10",project:"Telesis Home",member:"Zohaib Soraya",desc1:"Tomorrow first task",desc2:"",status:"To Do",trello:"",nifty:"",time:"",milestone:""},
 ]}];
 const D_LEADS=[
-  {id:"L-001",client:"acme_design_co",job:"Landing page for SaaS launch",source:"Upwork Job Post",type:"Web Development",budget:1500,firstContact:"2026-04-14",lastContact:"2026-04-14",nextFollowup:"2026-04-18",status:"Proposal Sent",priority:"High",proposalSent:true,notes:"Detailed brief, budget matches."},
-  {id:"L-002",client:"maria_k_ecom",job:"Shopify theme customization",source:"Upwork Invitation",type:"Web Development",budget:800,firstContact:"2026-04-10",lastContact:"2026-04-12",nextFollowup:"2026-04-15",status:"In Discussion",priority:"High",proposalSent:true,notes:"Asked for portfolio and timeline."},
-  {id:"L-003",client:"startup_mvp_io",job:"React MVP for fintech",source:"Upwork Job Post",type:"Web Development",budget:5000,firstContact:"2026-04-06",lastContact:"2026-04-08",nextFollowup:"2026-04-17",status:"Hot",priority:"High",proposalSent:true,notes:"Call scheduled Thursday. Strong fit."},
-  {id:"L-004",client:"blogger_jane",job:"Monthly blog writing",source:"Upwork Search",type:"Writing",budget:400,firstContact:"2026-04-02",lastContact:"2026-04-03",nextFollowup:"2026-04-10",status:"Cold",priority:"Low",proposalSent:true,notes:"No reply after 2 follow-ups."},
-  {id:"L-005",client:"agency_pulse",job:"Brand identity redesign",source:"Referral",type:"Design",budget:2500,firstContact:"2026-03-27",lastContact:"2026-04-13",nextFollowup:"2026-04-20",status:"Warm",priority:"Medium",proposalSent:true,notes:"Comparing freelancers."},
-  {id:"L-006",client:"data_corp_ltd",job:"Python automation scripts",source:"Upwork Invitation",type:"Data/AI",budget:1200,firstContact:"2026-03-17",lastContact:"2026-03-19",nextFollowup:"2026-03-27",status:"Dead",priority:"Low",proposalSent:true,notes:"Hired internal team."},
-  {id:"L-007",client:"fast_launch_pm",job:"Next.js dashboard",source:"Upwork Job Post",type:"Web Development",budget:3000,firstContact:"2026-04-15",lastContact:"2026-04-15",nextFollowup:"2026-04-19",status:"New",priority:"Medium",proposalSent:false,notes:"Proposal drafting."},
+  {id:"L-001",client:"acme_design_co",job:"Landing page for SaaS launch",source:"Upwork Job Post",type:"Web Development",budget:1500,firstContact:"2026-04-14",lastContact:"2026-04-14",nextFollowup:"2026-04-18",status:"Proposal Sent",priority:"High",proposalSent:true,notes:"Detailed brief."},
+  {id:"L-002",client:"startup_mvp_io",job:"React MVP for fintech",source:"Upwork Job Post",type:"Web Development",budget:5000,firstContact:"2026-04-06",lastContact:"2026-04-08",nextFollowup:"2026-04-17",status:"Hot",priority:"High",proposalSent:true,notes:"Call scheduled."},
 ];
-const D_ACT=[
-  {id:uid(),date:"2026-04-14",leadId:"L-001",type:"Proposal Sent",summary:"Sent proposal with 3 samples.",next:"Follow up in 2 days"},
-  {id:uid(),date:"2026-04-12",leadId:"L-002",type:"Client Replied",summary:"Asked for portfolio and timeline.",next:"Send detailed timeline"},
-  {id:uid(),date:"2026-04-08",leadId:"L-003",type:"Call Scheduled",summary:"Client booked 30-min discovery call.",next:"Prepare questions + demo"},
-  {id:uid(),date:"2026-04-10",leadId:"L-004",type:"Follow-up Sent",summary:"Second follow-up.",next:"One more then close"},
-  {id:uid(),date:"2026-04-13",leadId:"L-005",type:"Client Replied",summary:"Comparing freelancers.",next:"Send revised scope"},
-];
+const D_ACT=[{id:uid(),date:"2026-04-14",leadId:"L-001",type:"Proposal Sent",summary:"Sent proposal with 3 samples.",next:"Follow up in 2 days"}];
 
 /* ═══ SHARED UI ═══ */
 const Toast=({msg})=>msg?<div style={{position:"fixed",bottom:28,left:"50%",transform:"translateX(-50%)",background:"var(--navy)",color:"#fff",padding:"11px 28px",borderRadius:10,fontSize:13,fontWeight:600,zIndex:999,boxShadow:"0 12px 40px rgba(0,0,0,.3)",animation:"slideUp .25s ease"}}>{msg}</div>:null;
 const Badge=({c,bg,bd,children})=><span style={{display:"inline-flex",alignItems:"center",gap:4,background:bg,color:c,border:`1.5px solid ${bd}`,padding:"3px 12px",borderRadius:99,fontSize:11,fontWeight:700,whiteSpace:"nowrap"}}>{children}</span>;
 const KPI=({label,val,c,bg,icon})=><div style={{background:bg,borderRadius:"var(--r)",padding:"14px 18px",minWidth:110,flex:"1 1 110px"}}><div style={{display:"flex",alignItems:"center",gap:6}}>{icon&&<span style={{fontSize:16}}>{icon}</span>}<span style={{fontSize:22,fontWeight:800,color:c,lineHeight:1}}>{val}</span></div><div style={{fontSize:10,color:"var(--ink3)",marginTop:6,fontWeight:700,letterSpacing:".04em",textTransform:"uppercase"}}>{label}</div></div>;
-const Inp=({value,onChange,ph,bold,mono,small})=><input value={value||""} onChange={e=>onChange(e.target.value)} placeholder={ph} style={{width:"100%",padding:small?"6px 8px":"8px 10px",border:"1.5px solid var(--ink6)",borderRadius:"var(--rs)",fontSize:small?11:13,outline:"none",background:"var(--surface)",fontWeight:bold?600:400,color:"var(--ink)",fontFamily:mono?"monospace":"inherit",transition:"border .15s"}} onFocus={e=>e.target.style.borderColor="var(--accent)"} onBlur={e=>e.target.style.borderColor="var(--ink6)"}/>;
+const Inp=({value,onChange,ph,bold,mono,small})=><input value={value||""} onChange={e=>onChange(e.target.value)} placeholder={ph} style={{width:"100%",padding:small?"6px 8px":"8px 10px",border:"1.5px solid var(--ink6)",borderRadius:"var(--rs)",fontSize:small?11:13,outline:"none",background:"var(--surface)",fontWeight:bold?600:400,color:"var(--ink)",fontFamily:mono?"monospace":"inherit"}} onFocus={e=>e.target.style.borderColor="var(--accent)"} onBlur={e=>e.target.style.borderColor="var(--ink6)"}/>;
 const Sel=({value,onChange,options,ph,sty})=>{const st=sty?sty.find(x=>x.v===value):null;return<select value={value||""} onChange={e=>onChange(e.target.value)} style={{width:"100%",padding:"8px 10px",border:`1.5px solid ${st?st.bd:"var(--ink6)"}`,borderRadius:"var(--rs)",fontSize:12,fontWeight:value?600:400,outline:"none",cursor:"pointer",background:st?st.bg:"var(--surface)",color:st?st.c:value?"var(--ink)":"var(--ink4)"}}><option value="">{ph||"Select..."}</option>{options.map(o=>{const lbl=typeof o==="string"?o:o.v;return<option key={lbl} value={lbl}>{lbl}</option>})}</select>};
 const DateInp=({value,onChange,warn})=><input type="date" value={value||""} onChange={e=>onChange(e.target.value)} style={{padding:"8px 10px",border:`1.5px solid ${warn==="overdue"?"var(--red-bd)":warn==="today"?"var(--orange-bd)":"var(--ink6)"}`,borderRadius:"var(--rs)",fontSize:12,outline:"none",background:warn==="overdue"?"var(--red-bg)":warn==="today"?"var(--orange-bg)":"var(--surface)",width:"100%",fontFamily:"inherit",color:"var(--ink)"}}/>;
 const DelBtn=({onClick})=><button onClick={onClick} style={{width:30,height:30,display:"flex",alignItems:"center",justifyContent:"center",borderRadius:"var(--rs)",border:"none",background:"transparent",color:"var(--ink5)",fontSize:14,cursor:"pointer",transition:"all .15s",flexShrink:0}} onMouseEnter={e=>{e.currentTarget.style.background="var(--red-bg)";e.currentTarget.style.color="var(--red)"}} onMouseLeave={e=>{e.currentTarget.style.background="transparent";e.currentTarget.style.color="var(--ink5)"}}>✕</button>;
 const FL={fontSize:10,fontWeight:700,color:"var(--ink4)",textTransform:"uppercase",letterSpacing:".06em",marginBottom:5};
+const TeamSel=({value,onChange,team,onAddMember})=>{const hc=e=>{if(e.target.value==="__add__"){const n=prompt("Enter new team member name:");if(n&&n.trim()){onAddMember(n.trim());onChange(n.trim())}}else onChange(e.target.value)};return<select value={value||""} onChange={hc} style={{width:"100%",padding:"8px 10px",border:"1.5px solid var(--ink6)",borderRadius:"var(--rs)",fontSize:12,fontWeight:value?600:400,outline:"none",cursor:"pointer",background:"var(--surface)",color:value?"var(--ink)":"var(--ink4)"}}><option value="">Assign...</option>{team.map(m=><option key={m}>{m}</option>)}<option value="__add__" style={{fontWeight:700,color:"#2563eb"}}>+ Add new member...</option></select>};
+const SyncIndicator=({syncing})=><span title={syncing?"Saving...":"All changes saved"} style={{display:"inline-flex",alignItems:"center",fontSize:10,color:"var(--ink4)",gap:4}}><span className="sync-dot" style={{background:syncing?"var(--amber)":"var(--green)"}}></span>{syncing?"Saving...":"Synced"}</span>;
 
-/* ═══ TEAM SELECT WITH ADD NEW ═══ */
-const TeamSel=({value,onChange,team,onAddMember})=>{
-  const handleChange=(e)=>{
-    if(e.target.value==="__add_new__"){
-      const name=prompt("Enter new team member name:");
-      if(name&&name.trim()){onAddMember(name.trim());onChange(name.trim())}
-    } else {onChange(e.target.value)}
-  };
-  return<select value={value||""} onChange={handleChange} style={{width:"100%",padding:"8px 10px",border:"1.5px solid var(--ink6)",borderRadius:"var(--rs)",fontSize:12,fontWeight:value?600:400,outline:"none",cursor:"pointer",background:"var(--surface)",color:value?"var(--ink)":"var(--ink4)"}}>
-    <option value="">Assign...</option>
-    {team.map(m=><option key={m} value={m}>{m}</option>)}
-    <option value="__add_new__" style={{fontWeight:700,color:"#2563eb"}}>+ Add new member...</option>
-  </select>;
-};
-
-/* ═══ DAILY OPS TAB ═══ */
-function DailyOps({toast,team,onAddMember}){
-  const[days,setDays]=useState([]);const[ld,setLd]=useState(false);const[col,setCol]=useState({});
-  const[fM,setFM]=useState("");const[fS,setFS]=useState("");const[q,setQ]=useState("");
+/* ═══ DAILY OPS ═══ */
+function DailyOps({toast,team,onAddMember,days,setDays,opsLoaded,opsSyncing}){
+  const[col,setCol]=useState({});const[fM,setFM]=useState("");const[fS,setFS]=useState("");const[q,setQ]=useState("");
   const[dragInfo,setDragInfo]=useState(null);const[dragOver,setDragOver]=useState(null);
-  useEffect(()=>{try{setDays(JSON.parse(localStorage.getItem(SK.ops))||D_OPS)}catch{setDays(D_OPS)}setLd(true)},[]);
-  useEffect(()=>{if(ld)localStorage.setItem(SK.ops,JSON.stringify(days))},[days,ld]);
+  if(!opsLoaded||!days)return<div style={{padding:40,textAlign:"center",color:"var(--ink4)"}}>Loading operations data...</div>;
   const addDay=()=>{const n=new Date();setDays(p=>[{id:uid(),day:n.toLocaleDateString("en-US",{weekday:"long"}),date:n.toISOString().slice(0,10),tasks:[bTask()]},...p]);toast("New day created")};
   const updateDay=(did,f,v)=>setDays(p=>p.map(d=>d.id===did?{...d,[f]:v}:d));
   const deleteDay=did=>{if(confirm("Delete this entire day?")){setDays(p=>p.filter(d=>d.id!==did));toast("Day deleted")}};
-  const carryForward=did=>{const src=days.find(d=>d.id===did);if(!src)return;const n=new Date();const pend=src.tasks.filter(t=>t.status!=="Completed");if(!pend.length){toast("No pending tasks");return}setDays(p=>[{id:uid(),day:n.toLocaleDateString("en-US",{weekday:"long"}),date:n.toISOString().slice(0,10),tasks:pend.map(t=>({...t,id:uid(),status:"Carry Forward",time:""}))},...p]);toast(`${pend.length} tasks carried forward`)};
+  const carryForward=did=>{const src=days.find(d=>d.id===did);if(!src)return;const n=new Date();const pend=src.tasks.filter(t=>t.status!=="Completed");if(!pend.length){toast("No pending tasks");return}setDays(p=>[{id:uid(),day:n.toLocaleDateString("en-US",{weekday:"long"}),date:n.toISOString().slice(0,10),tasks:pend.map(t=>({...t,id:uid(),status:"Carry Forward",time:""}))},...p]);toast(`${pend.length} carried forward`)};
   const duplicateDay=did=>{const src=days.find(d=>d.id===did);if(!src)return;setDays(p=>[{...src,id:uid(),tasks:src.tasks.map(t=>({...t,id:uid()}))},...p]);toast("Day duplicated")};
   const addTask=did=>{setDays(p=>p.map(d=>d.id===did?{...d,tasks:[...d.tasks,bTask()]}:d));toast("Task added")};
-  const updateTask=(did,tid,f,v)=>setDays(p=>p.map(d=>d.id===did?{...d,tasks:d.tasks.map(t=>t.id===tid?{...t,[f]:v}:t)}:d));
-  const deleteTask=(did,tid)=>setDays(p=>p.map(d=>d.id===did?{...d,tasks:d.tasks.filter(t=>t.id!==tid)}:d));
-
-  /* Drag and drop */
-  const onDragStart=(e,dayId,taskId)=>{setDragInfo({dayId,taskId});e.dataTransfer.effectAllowed="move";e.currentTarget.classList.add("dragging")};
-  const onDragEnd=(e)=>{e.currentTarget.classList.remove("dragging");setDragInfo(null);setDragOver(null)};
-  const onDragOverRow=(e,dayId,taskId)=>{e.preventDefault();e.dataTransfer.dropEffect="move";if(dragInfo&&dragInfo.dayId===dayId&&dragInfo.taskId!==taskId){setDragOver({dayId,taskId})}};
-  const onDragLeaveRow=(e)=>{setDragOver(null)};
-  const onDrop=(e,dayId,targetTaskId)=>{e.preventDefault();setDragOver(null);if(!dragInfo||dragInfo.dayId!==dayId)return;
-    setDays(p=>p.map(d=>{if(d.id!==dayId)return d;const tasks=[...d.tasks];const fromIdx=tasks.findIndex(t=>t.id===dragInfo.taskId);const toIdx=tasks.findIndex(t=>t.id===targetTaskId);if(fromIdx<0||toIdx<0||fromIdx===toIdx)return d;const[moved]=tasks.splice(fromIdx,1);tasks.splice(toIdx,0,moved);return{...d,tasks}}));
-    setDragInfo(null);toast("Task reordered")};
-
-  const gS=ts=>{const t=ts.length,d=ts.filter(x=>x.status==="Completed").length,h=ts.reduce((s,x)=>s+(parseFloat(x.time)||0),0);return{total:t,done:d,hrs:h}};
+  const uTask=(did,tid,f,v)=>setDays(p=>p.map(d=>d.id===did?{...d,tasks:d.tasks.map(t=>t.id===tid?{...t,[f]:v}:t)}:d));
+  const dTask=(did,tid)=>setDays(p=>p.map(d=>d.id===did?{...d,tasks:d.tasks.filter(t=>t.id!==tid)}:d));
+  const onDS=(e,did,tid)=>{setDragInfo({did,tid});e.dataTransfer.effectAllowed="move";e.currentTarget.classList.add("dragging")};
+  const onDE=e=>{e.currentTarget.classList.remove("dragging");setDragInfo(null);setDragOver(null)};
+  const onDO=(e,did,tid)=>{e.preventDefault();if(dragInfo&&dragInfo.did===did&&dragInfo.tid!==tid)setDragOver({did,tid})};
+  const onDr=(e,did,tid)=>{e.preventDefault();setDragOver(null);if(!dragInfo||dragInfo.did!==did)return;setDays(p=>p.map(d=>{if(d.id!==did)return d;const ts=[...d.tasks];const fi=ts.findIndex(t=>t.id===dragInfo.tid);const ti=ts.findIndex(t=>t.id===tid);if(fi<0||ti<0||fi===ti)return d;const[m]=ts.splice(fi,1);ts.splice(ti,0,m);return{...d,tasks:ts}}));setDragInfo(null);toast("Reordered")};
+  const gS=ts=>({total:ts.length,done:ts.filter(x=>x.status==="Completed").length,hrs:ts.reduce((s,x)=>s+(parseFloat(x.time)||0),0)});
   const gs=gS(days.flatMap(d=>d.tasks));
   const mF=t=>{if(fM&&t.member!==fM)return false;if(fS&&t.status!==fS)return false;if(q){const s=q.toLowerCase();return[t.project,t.desc1,t.desc2,t.member].some(x=>(x||"").toLowerCase().includes(s))}return true};
-  if(!ld)return null;
   const gc="24px 2fr 1fr 1.5fr 1fr 1.2fr .55fr .55fr .45fr .75fr 30px";
-  return<div style={{animation:"fadeIn .3s ease"}}>
+  return<div style={{animation:"fadeIn .3s"}}>
     <div style={{padding:"12px 20px",background:"var(--surface)",borderBottom:"1px solid var(--ink6)",display:"flex",gap:10,flexWrap:"wrap",alignItems:"center"}}>
-      <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search tasks..." style={{padding:"8px 14px",borderRadius:"var(--r)",border:"1.5px solid var(--ink6)",fontSize:13,width:190,outline:"none",background:"var(--surface2)"}}/>
+      <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search..." style={{padding:"8px 14px",borderRadius:"var(--r)",border:"1.5px solid var(--ink6)",fontSize:13,width:170,outline:"none",background:"var(--surface2)"}}/>
       <select value={fM} onChange={e=>setFM(e.target.value)} style={fltSel}><option value="">All Members</option>{team.map(m=><option key={m}>{m}</option>)}</select>
       <select value={fS} onChange={e=>setFS(e.target.value)} style={fltSel}><option value="">All Status</option>{OPS_ST.map(s=><option key={s.v}>{s.v}</option>)}</select>
-      <div style={{flex:1}}/><span style={{fontSize:12,color:"var(--ink3)",fontWeight:600}}>{gs.total} tasks</span>
+      <div style={{flex:1}}/>
+      <SyncIndicator syncing={opsSyncing}/>
+      <span style={{fontSize:12,color:"var(--ink3)",fontWeight:600}}>{gs.total} tasks</span>
       {gs.done>0&&<Badge c="var(--green)" bg="var(--green-bg)" bd="var(--green-bd)">{gs.done} done</Badge>}
       {gs.hrs>0&&<Badge c="var(--cyan)" bg="var(--cyan-bg)" bd="var(--cyan-bd)">{gs.hrs}h</Badge>}
       <button onClick={addDay} style={btnP}>+ New Day</button>
@@ -295,27 +237,20 @@ function DailyOps({toast,team,onAddMember}){
             </div>
           </div>
           {!isC&&<div style={{overflowX:"auto",padding:"4px 10px 12px"}}>
-            <div style={{display:"grid",gridTemplateColumns:gc,gap:6,padding:"8px 4px 6px",borderBottom:"2px solid var(--ink7)",minWidth:1030}}>
-              <div/>
-              {["Project & Client","Team Member","Description","Notes","Status","Trello","Nifty","Hrs","Milestone",""].map(h=><div key={h} style={{fontSize:10,fontWeight:700,color:"var(--ink4)",textTransform:"uppercase",letterSpacing:".05em"}}>{h}</div>)}
-            </div>
-            {ft.map((t,i)=>{const isDO=dragOver&&dragOver.dayId===day.id&&dragOver.taskId===t.id;
-              return<div key={t.id} draggable className={`row-hover${isDO?" drag-over":""}`}
-                onDragStart={e=>onDragStart(e,day.id,t.id)} onDragEnd={onDragEnd}
-                onDragOver={e=>onDragOverRow(e,day.id,t.id)} onDragLeave={onDragLeaveRow}
-                onDrop={e=>onDrop(e,day.id,t.id)}
-                style={{display:"grid",gridTemplateColumns:gc,gap:6,padding:"6px 4px",borderBottom:"1px solid var(--ink7)",alignItems:"center",minWidth:1030,background:i%2?"var(--surface2)":"var(--surface)",transition:"background .1s,opacity .2s,border-top .15s"}}>
+            <div style={{display:"grid",gridTemplateColumns:gc,gap:6,padding:"8px 4px 6px",borderBottom:"2px solid var(--ink7)",minWidth:1030}}><div/>{["Project & Client","Team Member","Description","Notes","Status","Trello","Nifty","Hrs","Milestone",""].map(h=><div key={h} style={{fontSize:10,fontWeight:700,color:"var(--ink4)",textTransform:"uppercase",letterSpacing:".05em"}}>{h}</div>)}</div>
+            {ft.map((t,i)=>{const isDO=dragOver&&dragOver.did===day.id&&dragOver.tid===t.id;
+              return<div key={t.id} draggable className={`row-hover${isDO?" drag-over":""}`} onDragStart={e=>onDS(e,day.id,t.id)} onDragEnd={onDE} onDragOver={e=>onDO(e,day.id,t.id)} onDragLeave={()=>setDragOver(null)} onDrop={e=>onDr(e,day.id,t.id)} style={{display:"grid",gridTemplateColumns:gc,gap:6,padding:"6px 4px",borderBottom:"1px solid var(--ink7)",alignItems:"center",minWidth:1030,background:i%2?"var(--surface2)":"var(--surface)",transition:"all .15s"}}>
               <div className="drag-handle" title="Drag to reorder">⠿</div>
-              <Inp value={t.project} onChange={v=>updateTask(day.id,t.id,"project",v)} ph="Project..." bold/>
-              <TeamSel value={t.member} onChange={v=>updateTask(day.id,t.id,"member",v)} team={team} onAddMember={onAddMember}/>
-              <Inp value={t.desc1} onChange={v=>updateTask(day.id,t.id,"desc1",v)} ph="Task details..."/>
-              <Inp value={t.desc2} onChange={v=>updateTask(day.id,t.id,"desc2",v)} ph="Notes..."/>
-              <Sel value={t.status} onChange={v=>updateTask(day.id,t.id,"status",v)} options={OPS_ST} ph="Status..." sty={OPS_ST}/>
-              <Inp value={t.trello} onChange={v=>updateTask(day.id,t.id,"trello",v)} ph="—" small/>
-              <Inp value={t.nifty} onChange={v=>updateTask(day.id,t.id,"nifty",v)} ph="—" small/>
-              <Inp value={t.time} onChange={v=>updateTask(day.id,t.id,"time",v)} ph="0" small mono/>
-              <Inp value={t.milestone} onChange={v=>updateTask(day.id,t.id,"milestone",v)} ph="—" small/>
-              <DelBtn onClick={()=>deleteTask(day.id,t.id)}/>
+              <Inp value={t.project} onChange={v=>uTask(day.id,t.id,"project",v)} ph="Project..." bold/>
+              <TeamSel value={t.member} onChange={v=>uTask(day.id,t.id,"member",v)} team={team} onAddMember={onAddMember}/>
+              <Inp value={t.desc1} onChange={v=>uTask(day.id,t.id,"desc1",v)} ph="Task details..."/>
+              <Inp value={t.desc2} onChange={v=>uTask(day.id,t.id,"desc2",v)} ph="Notes..."/>
+              <Sel value={t.status} onChange={v=>uTask(day.id,t.id,"status",v)} options={OPS_ST} ph="Status..." sty={OPS_ST}/>
+              <Inp value={t.trello} onChange={v=>uTask(day.id,t.id,"trello",v)} ph="—" small/>
+              <Inp value={t.nifty} onChange={v=>uTask(day.id,t.id,"nifty",v)} ph="—" small/>
+              <Inp value={t.time} onChange={v=>uTask(day.id,t.id,"time",v)} ph="0" small mono/>
+              <Inp value={t.milestone} onChange={v=>uTask(day.id,t.id,"milestone",v)} ph="—" small/>
+              <DelBtn onClick={()=>dTask(day.id,t.id)}/>
             </div>})}
             {ft.length===0&&<div style={{padding:20,textAlign:"center",color:"var(--ink4)",fontSize:13}}>No tasks match</div>}
             <button onClick={()=>addTask(day.id)} style={addTBtn} onMouseEnter={e=>{e.currentTarget.style.borderColor="var(--accent)";e.currentTarget.style.background="var(--accent-light)"}} onMouseLeave={e=>{e.currentTarget.style.borderColor="var(--ink6)";e.currentTarget.style.background="var(--surface2)"}}>+ Add Task</button>
@@ -326,15 +261,12 @@ function DailyOps({toast,team,onAddMember}){
 }
 
 /* ═══ LEADS TAB ═══ */
-function LeadsTab({toast,team,onAddMember}){
-  const[leads,setLeads]=useState([]);const[acts,setActs]=useState([]);const[ld,setLd]=useState(false);
-  const[view,setView]=useState("cards");const[fS,setFS]=useState("");const[fP,setFP]=useState("");const[q,setQ]=useState("");
-  const[expanded,setExpanded]=useState({});
-  useEffect(()=>{try{setLeads(JSON.parse(localStorage.getItem(SK.leads))||D_LEADS)}catch{setLeads(D_LEADS)}try{setActs(JSON.parse(localStorage.getItem(SK.act))||D_ACT)}catch{setActs(D_ACT)}setLd(true)},[]);
-  useEffect(()=>{if(ld){localStorage.setItem(SK.leads,JSON.stringify(leads));localStorage.setItem(SK.act,JSON.stringify(acts))}},[leads,acts,ld]);
+function LeadsTab({toast,team,onAddMember,leads,setLeads,acts,setActs,leadsLoaded,leadsSyncing,actsSyncing}){
+  const[view,setView]=useState("cards");const[fS,setFS]=useState("");const[fP,setFP]=useState("");const[q,setQ]=useState("");const[expanded,setExpanded]=useState({});
+  if(!leadsLoaded||!leads||!acts)return<div style={{padding:40,textAlign:"center",color:"var(--ink4)"}}>Loading leads data...</div>;
   const uL=(id,f,v)=>setLeads(p=>p.map(l=>l.id===id?{...l,[f]:v}:l));
   const aL=()=>{const n=leads.length+1;setLeads(p=>[...p,{id:`L-${String(n).padStart(3,"0")}`,client:"",job:"",source:"",type:"",budget:0,firstContact:today(),lastContact:today(),nextFollowup:"",status:"New",priority:"Medium",proposalSent:false,notes:""}]);toast("Lead added")};
-  const dL=id=>{if(confirm("Delete this lead?")){setLeads(p=>p.filter(l=>l.id!==id));setActs(p=>p.filter(a=>a.leadId!==id));toast("Lead deleted")}};
+  const dL=id=>{if(confirm("Delete this lead?")){setLeads(p=>p.filter(l=>l.id!==id));setActs(p=>p.filter(a=>a.leadId!==id));toast("Deleted")}};
   const aA=lid=>{setActs(p=>[{id:uid(),date:today(),leadId:lid||"",type:"Note",summary:"",next:""},...p]);toast("Activity logged")};
   const uA=(id,f,v)=>setActs(p=>p.map(a=>a.id===id?{...a,[f]:v}:a));
   const dA=id=>setActs(p=>p.filter(a=>a.id!==id));
@@ -344,7 +276,6 @@ function LeadsTab({toast,team,onAddMember}){
   const overdue=leads.filter(l=>l.nextFollowup&&l.nextFollowup<today()&&!["Won","Dead"].includes(l.status));
   const mF=l=>{if(fS&&l.status!==fS)return false;if(fP&&l.priority!==fP)return false;if(q){const s=q.toLowerCase();return[l.client,l.job,l.notes,l.id].some(x=>(x||"").toLowerCase().includes(s))}return true};
   const fl=leads.filter(mF);
-  if(!ld)return null;
   return<div style={{animation:"fadeIn .3s"}}>
     <div style={{padding:"16px 20px",background:"var(--surface)",borderBottom:"1px solid var(--ink6)"}}>
       <div style={{display:"flex",gap:10,flexWrap:"wrap",marginBottom:14}}>
@@ -359,19 +290,18 @@ function LeadsTab({toast,team,onAddMember}){
         <div style={{display:"flex",background:"var(--surface3)",borderRadius:8,padding:3,gap:2}}>
           {[["cards","📋 Cards"],["board","◫ Board"],["activity","📝 Activity"]].map(([k,l])=><button key={k} onClick={()=>setView(k)} style={{padding:"7px 14px",borderRadius:6,border:"none",fontSize:12,fontWeight:600,cursor:"pointer",background:view===k?"var(--surface)":"transparent",color:view===k?"var(--ink)":"var(--ink3)",boxShadow:view===k?"0 1px 3px rgba(0,0,0,.06)":"none"}}>{l}</button>)}
         </div>
-        <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search..." style={{padding:"8px 14px",borderRadius:"var(--r)",border:"1.5px solid var(--ink6)",fontSize:13,width:170,outline:"none",background:"var(--surface2)"}}/>
+        <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search..." style={{padding:"8px 14px",borderRadius:"var(--r)",border:"1.5px solid var(--ink6)",fontSize:13,width:160,outline:"none",background:"var(--surface2)"}}/>
         <select value={fS} onChange={e=>setFS(e.target.value)} style={fltSel}><option value="">All Status</option>{LEAD_ST.map(s=><option key={s.v}>{s.v}</option>)}</select>
         <select value={fP} onChange={e=>setFP(e.target.value)} style={fltSel}><option value="">All Priority</option>{PRIOS.map(p=><option key={p}>{p}</option>)}</select>
-        <div style={{flex:1}}/><button onClick={aL} style={btnP}>+ New Lead</button>
+        <div style={{flex:1}}/><SyncIndicator syncing={leadsSyncing||actsSyncing}/><button onClick={aL} style={btnP}>+ New Lead</button>
       </div>
     </div>
     <div style={{padding:"16px 20px 60px"}}>
       {view==="cards"&&<div style={{display:"flex",flexDirection:"column",gap:10}}>
         {fl.map((l,i)=>{const aging=dBtw(l.firstContact,today());const since=dBtw(l.lastContact,today());const isOD=l.nextFollowup&&l.nextFollowup<today()&&!["Won","Dead"].includes(l.status);const isDT=l.nextFollowup===today();const st=getLS(l.status);const isExp=expanded[l.id];const lA=acts.filter(a=>a.leadId===l.id).sort((a,b)=>(b.date||"").localeCompare(a.date||""));const wp=st?st.p:0;
-          return<div key={l.id} style={{background:"var(--surface)",borderRadius:"var(--r)",border:`1.5px solid ${isOD?"var(--red-bd)":"var(--ink6)"}`,overflow:"hidden",animation:`fadeIn .2s ease ${i*.03}s both`}}>
+          return<div key={l.id} style={{background:"var(--surface)",borderRadius:"var(--r)",border:`1.5px solid ${isOD?"var(--red-bd)":"var(--ink6)"}`,overflow:"hidden"}}>
             <div style={{display:"flex",alignItems:"center",gap:16,padding:"14px 20px",cursor:"pointer",flexWrap:"wrap"}} onClick={()=>setExpanded(p=>({...p,[l.id]:!p[l.id]}))}>
-              <div style={{width:10,height:10,borderRadius:99,background:st?st.c:"var(--ink5)",flexShrink:0}}/>
-              <span style={{fontSize:11,fontWeight:700,color:"var(--ink4)",fontFamily:"monospace",minWidth:45}}>{l.id}</span>
+              <div style={{width:10,height:10,borderRadius:99,background:st?st.c:"var(--ink5)",flexShrink:0}}/><span style={{fontSize:11,fontWeight:700,color:"var(--ink4)",fontFamily:"monospace",minWidth:45}}>{l.id}</span>
               <div style={{flex:"2 1 200px",minWidth:0}}><div style={{fontSize:15,fontWeight:700,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{l.client||"Untitled"}</div><div style={{fontSize:12,color:"var(--ink3)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",marginTop:1}}>{l.job||"No title"}</div></div>
               <div style={{textAlign:"right",minWidth:70}}><div style={{fontSize:18,fontWeight:800,color:"var(--green)"}}>{l.budget?fmtM(l.budget):""}</div><div style={{fontSize:10,color:"var(--ink4)"}}>{l.type}</div></div>
               <div style={{textAlign:"center",minWidth:50}}><div style={{fontSize:10,color:"var(--ink4)"}}>Win%</div><div style={{fontSize:14,fontWeight:800,color:wp>=60?"var(--green)":wp>=30?"var(--amber)":"var(--ink4)"}}>{wp}%</div></div>
@@ -404,13 +334,7 @@ function LeadsTab({toast,team,onAddMember}){
               <div style={{marginBottom:18}}><div style={FL}>Notes</div><textarea value={l.notes||""} onChange={e=>uL(l.id,"notes",e.target.value)} placeholder="Notes..." rows={2} style={{width:"100%",padding:"10px 12px",border:"1.5px solid var(--ink6)",borderRadius:"var(--rs)",fontSize:13,outline:"none",resize:"vertical",fontFamily:"inherit",background:"var(--surface)"}}/></div>
               <div style={{marginBottom:14}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}><span style={{fontSize:13,fontWeight:700}}>Activity Log ({lA.length})</span><button onClick={()=>aA(l.id)} style={{padding:"6px 14px",borderRadius:"var(--rs)",border:"1.5px solid var(--accent-border)",background:"var(--accent-light)",color:"var(--accent2)",fontSize:12,fontWeight:700,cursor:"pointer"}}>+ Log</button></div>
-                {lA.map(a=><div key={a.id} style={{display:"grid",gridTemplateColumns:"110px 150px 1fr 1fr 30px",gap:10,padding:"6px 0",borderBottom:"1px solid var(--ink7)",alignItems:"center"}}>
-                  <DateInp value={a.date} onChange={v=>uA(a.id,"date",v)}/>
-                  <Sel value={a.type} onChange={v=>uA(a.id,"type",v)} options={ACT_TYPES} ph="Type..."/>
-                  <Inp value={a.summary} onChange={v=>uA(a.id,"summary",v)} ph="What happened..."/>
-                  <Inp value={a.next} onChange={v=>uA(a.id,"next",v)} ph="Next step..."/>
-                  <DelBtn onClick={()=>dA(a.id)}/>
-                </div>)}
+                {lA.map(a=><div key={a.id} style={{display:"grid",gridTemplateColumns:"110px 150px 1fr 1fr 30px",gap:10,padding:"6px 0",borderBottom:"1px solid var(--ink7)",alignItems:"center"}}><DateInp value={a.date} onChange={v=>uA(a.id,"date",v)}/><Sel value={a.type} onChange={v=>uA(a.id,"type",v)} options={ACT_TYPES} ph="Type..."/><Inp value={a.summary} onChange={v=>uA(a.id,"summary",v)} ph="What happened..."/><Inp value={a.next} onChange={v=>uA(a.id,"next",v)} ph="Next step..."/><DelBtn onClick={()=>dA(a.id)}/></div>)}
                 {lA.length===0&&<div style={{padding:12,textAlign:"center",color:"var(--ink4)",fontSize:12,background:"var(--ink7)",borderRadius:"var(--rs)"}}>No activities yet</div>}
               </div>
               <div style={{display:"flex",justifyContent:"flex-end"}}><button onClick={()=>dL(l.id)} style={{padding:"7px 18px",borderRadius:"var(--rs)",border:"1.5px solid var(--red-bd)",background:"var(--red-bg)",color:"var(--red)",fontSize:12,fontWeight:700,cursor:"pointer"}}>Delete Lead</button></div>
@@ -422,78 +346,39 @@ function LeadsTab({toast,team,onAddMember}){
           return<div key={status} style={{minWidth:210,flex:"1 0 210px",background:"var(--surface)",borderRadius:"var(--r)",border:"1px solid var(--ink6)",overflow:"hidden"}}>
             <div style={{padding:"10px 14px",borderBottom:`2.5px solid ${s?s.bd:"var(--ink6)"}`,background:s?s.bg:"var(--surface2)"}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}><span style={{fontWeight:800,fontSize:13,color:s?s.c:"var(--ink3)"}}>{status}</span><span style={{background:"var(--navy)",color:"#fff",fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:99}}>{items.length}</span></div>{tot>0&&<div style={{fontSize:11,color:"var(--ink3)",marginTop:3,fontWeight:600}}>{fmtM(tot)}</div>}</div>
             <div style={{padding:8,display:"flex",flexDirection:"column",gap:8,minHeight:60}}>
-              {items.map(l=>{const isOD=l.nextFollowup&&l.nextFollowup<today()&&!["Won","Dead"].includes(l.status);
-                return<div key={l.id} style={{background:"var(--surface2)",borderRadius:8,padding:"10px 12px",border:`1px solid ${isOD?"var(--red-bd)":"var(--ink7)"}`}}>
-                  <div style={{fontWeight:700,fontSize:13,marginBottom:3}}>{l.client||"—"}</div><div style={{fontSize:11,color:"var(--ink3)",marginBottom:6}}>{l.job||"No title"}</div>
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}><span style={{fontSize:14,fontWeight:800,color:"var(--green)"}}>{l.budget?fmtM(l.budget):""}</span><span style={{fontSize:9,fontWeight:700,padding:"2px 7px",borderRadius:99,background:l.priority==="High"?"var(--red-bg)":"var(--ink7)",color:l.priority==="High"?"var(--red)":"var(--ink3)"}}>{l.priority}</span></div>
-                  {isOD&&<div style={{fontSize:10,color:"var(--red)",fontWeight:700,marginTop:4}}>⚠ Overdue</div>}
-                </div>})}
-            </div>
-          </div>})}
+              {items.map(l=>{const isOD=l.nextFollowup&&l.nextFollowup<today()&&!["Won","Dead"].includes(l.status);return<div key={l.id} style={{background:"var(--surface2)",borderRadius:8,padding:"10px 12px",border:`1px solid ${isOD?"var(--red-bd)":"var(--ink7)"}`}}><div style={{fontWeight:700,fontSize:13,marginBottom:3}}>{l.client||"—"}</div><div style={{fontSize:11,color:"var(--ink3)",marginBottom:6}}>{l.job||""}</div><div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}><span style={{fontSize:14,fontWeight:800,color:"var(--green)"}}>{l.budget?fmtM(l.budget):""}</span><span style={{fontSize:9,fontWeight:700,padding:"2px 7px",borderRadius:99,background:l.priority==="High"?"var(--red-bg)":"var(--ink7)",color:l.priority==="High"?"var(--red)":"var(--ink3)"}}>{l.priority}</span></div>{isOD&&<div style={{fontSize:10,color:"var(--red)",fontWeight:700,marginTop:4}}>⚠ Overdue</div>}</div>})}</div></div>})}
       </div>}
       {view==="activity"&&<div style={{background:"var(--surface)",borderRadius:"var(--r)",border:"1px solid var(--ink6)",overflow:"hidden"}}>
         <div style={{padding:"14px 20px",borderBottom:"1px solid var(--ink6)",display:"flex",justifyContent:"space-between",alignItems:"center"}}><span style={{fontWeight:700,fontSize:14}}>Activities — {acts.length}</span><button onClick={()=>aA("")} style={btnP}>+ Log</button></div>
         <div style={{overflowX:"auto",padding:"8px 16px 16px"}}>
-          <div style={{display:"grid",gridTemplateColumns:"110px 80px 130px 150px 1fr 1fr 30px",gap:10,padding:"8px 0",borderBottom:"2px solid var(--ink7)",minWidth:800}}>{["Date","Lead","Client","Type","Summary","Next Step",""].map(h=><div key={h} style={{fontSize:10,fontWeight:700,color:"var(--ink4)",textTransform:"uppercase"}}>{h}</div>)}</div>
-          {[...acts].sort((a,b)=>(b.date||"").localeCompare(a.date||"")).map(a=><div key={a.id} className="row-hover" style={{display:"grid",gridTemplateColumns:"110px 80px 130px 150px 1fr 1fr 30px",gap:10,padding:"6px 0",borderBottom:"1px solid var(--ink7)",alignItems:"center",minWidth:800}}>
-            <DateInp value={a.date} onChange={v=>uA(a.id,"date",v)}/>
-            <Sel value={a.leadId} onChange={v=>uA(a.id,"leadId",v)} options={leads.map(l=>l.id)} ph="—"/>
-            <span style={{fontSize:12,fontWeight:600}}>{(leads.find(l=>l.id===a.leadId)||{}).client||"—"}</span>
-            <Sel value={a.type} onChange={v=>uA(a.id,"type",v)} options={ACT_TYPES} ph="Type..."/>
-            <Inp value={a.summary} onChange={v=>uA(a.id,"summary",v)} ph="What happened..."/>
-            <Inp value={a.next} onChange={v=>uA(a.id,"next",v)} ph="Next step..."/>
-            <DelBtn onClick={()=>dA(a.id)}/>
-          </div>)}
+          <div style={{display:"grid",gridTemplateColumns:"110px 80px 130px 150px 1fr 1fr 30px",gap:10,padding:"8px 0",borderBottom:"2px solid var(--ink7)",minWidth:800}}>{["Date","Lead","Client","Type","Summary","Next",""].map(h=><div key={h} style={{fontSize:10,fontWeight:700,color:"var(--ink4)",textTransform:"uppercase"}}>{h}</div>)}</div>
+          {[...acts].sort((a,b)=>(b.date||"").localeCompare(a.date||"")).map(a=><div key={a.id} className="row-hover" style={{display:"grid",gridTemplateColumns:"110px 80px 130px 150px 1fr 1fr 30px",gap:10,padding:"6px 0",borderBottom:"1px solid var(--ink7)",alignItems:"center",minWidth:800}}><DateInp value={a.date} onChange={v=>uA(a.id,"date",v)}/><Sel value={a.leadId} onChange={v=>uA(a.id,"leadId",v)} options={leads.map(l=>l.id)} ph="—"/><span style={{fontSize:12,fontWeight:600}}>{(leads.find(l=>l.id===a.leadId)||{}).client||"—"}</span><Sel value={a.type} onChange={v=>uA(a.id,"type",v)} options={ACT_TYPES} ph="Type..."/><Inp value={a.summary} onChange={v=>uA(a.id,"summary",v)} ph="What happened..."/><Inp value={a.next} onChange={v=>uA(a.id,"next",v)} ph="Next step..."/><DelBtn onClick={()=>dA(a.id)}/></div>)}
         </div>
       </div>}
     </div>
   </div>;
 }
 
-/* ═══ MAIN APP WITH AUTH ═══ */
+/* ═══ MAIN APP ═══ */
 function App(){
-  const[user,setUser]=useState(null);
-  const[checking,setChecking]=useState(true);
-  const[tab,setTab]=useState("ops");
-  const[toast,setToast]=useState(null);
-  const[team,setTeam]=useState([]);
+  const[user,setUser]=useState(null);const[checking,setChecking]=useState(true);const[tab,setTab]=useState("ops");const[toast,setToast]=useState(null);
   const st=m=>{setToast(m);setTimeout(()=>setToast(null),2200)};
 
-  // Load team from localStorage
-  useEffect(()=>{try{const saved=JSON.parse(localStorage.getItem(SK.team));setTeam(saved&&saved.length?saved:DEFAULT_TEAM)}catch{setTeam(DEFAULT_TEAM)}},[]);
-  useEffect(()=>{if(team.length)localStorage.setItem(SK.team,JSON.stringify(team))},[team]);
-  const addMember=(name)=>{if(!team.includes(name)){const updated=[...team,name].sort();setTeam(updated);st(`${name} added to team`)}};
+  // All shared data via Supabase
+  const[days,setDays,opsLoaded,opsSyncing]=useSharedData("ops",D_OPS);
+  const[leads,setLeads,leadsLoaded,leadsSyncing]=useSharedData("leads",D_LEADS);
+  const[acts,setActs,actsLoaded,actsSyncing]=useSharedData("acts",D_ACT);
+  const[team,setTeam,teamLoaded,teamSyncing]=useSharedData("team",DEFAULT_TEAM);
+  const addMember=name=>{if(team&&!team.includes(name)){setTeam(p=>[...p,name].sort());st(`${name} added`)}};
 
-  // Check existing session on load
-  useEffect(()=>{
-    supabase.auth.getSession().then(({data:{session}})=>{
-      setUser(session?.user||null);
-      setChecking(false);
-    });
-    // Listen for auth changes
-    const{data:{subscription}}=supabase.auth.onAuthStateChange((_,session)=>{
-      setUser(session?.user||null);
-    });
-    return()=>subscription.unsubscribe();
-  },[]);
+  useEffect(()=>{sb.auth.getSession().then(({data:{session}})=>{setUser(session?.user||null);setChecking(false)});const{data:{subscription}}=sb.auth.onAuthStateChange((_,session)=>{setUser(session?.user||null)});return()=>subscription.unsubscribe()},[]);
+  const handleSignOut=async()=>{await sb.auth.signOut();setUser(null);st("Signed out")};
+  const expAll=()=>{const d={ops:days,leads,acts,team};const b=new Blob([JSON.stringify(d,null,2)],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="niftycode-backup.json";a.click();st("Backup downloaded")};
+  const impAll=()=>{const i=document.createElement("input");i.type="file";i.accept=".json";i.onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=async ev=>{try{const d=JSON.parse(ev.target.result);if(d.ops)setDays(d.ops);if(d.leads)setLeads(d.leads);if(d.acts||d.act)setActs(d.acts||d.act);if(d.team)setTeam(d.team);st("Data imported & syncing...")}catch{alert("Invalid file")}};r.readAsText(f)};i.click()};
 
-  const handleSignOut=async()=>{
-    await supabase.auth.signOut();
-    setUser(null);
-    st("Signed out");
-  };
-
-  const expAll=()=>{const d={ops:JSON.parse(localStorage.getItem(SK.ops)||"[]"),leads:JSON.parse(localStorage.getItem(SK.leads)||"[]"),act:JSON.parse(localStorage.getItem(SK.act)||"[]"),team:JSON.parse(localStorage.getItem(SK.team)||"[]")};const b=new Blob([JSON.stringify(d,null,2)],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="niftycode-backup.json";a.click();st("Backup downloaded")};
-  const impAll=()=>{const i=document.createElement("input");i.type="file";i.accept=".json";i.onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{try{const d=JSON.parse(ev.target.result);if(d.ops)localStorage.setItem(SK.ops,JSON.stringify(d.ops));if(d.leads)localStorage.setItem(SK.leads,JSON.stringify(d.leads));if(d.act)localStorage.setItem(SK.act,JSON.stringify(d.act));if(d.team)localStorage.setItem(SK.team,JSON.stringify(d.team));window.location.reload()}catch{alert("Invalid file")}};r.readAsText(f)};i.click()};
-  const resetAll=()=>{if(confirm("Reset everything?")){localStorage.removeItem(SK.ops);localStorage.removeItem(SK.leads);localStorage.removeItem(SK.act);localStorage.removeItem(SK.team);window.location.reload()}};
-
-  // Loading state
   if(checking)return<div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"var(--navy)",color:"var(--ink4)",fontSize:14,fontWeight:600}}>Loading...</div>;
-
-  // Not authenticated → show login
   if(!user)return<AuthGate onAuth={setUser}/>;
 
-  // Authenticated → show app
   return<div style={{minHeight:"100vh",background:"var(--bg)"}}>
     <Toast msg={toast}/>
     <header style={{background:"var(--navy)",padding:"0 20px",position:"sticky",top:0,zIndex:100,borderBottom:"1px solid rgba(255,255,255,.06)"}}>
@@ -507,16 +392,15 @@ function App(){
           {[["ops","⚡ Daily Ops"],["leads","🎯 Leads"]].map(([k,l])=><button key={k} onClick={()=>setTab(k)} style={{padding:"8px 20px",borderRadius:6,border:"none",fontSize:13,fontWeight:700,cursor:"pointer",background:tab===k?"var(--accent)":"transparent",color:tab===k?"#fff":"var(--ink4)"}}>{l}</button>)}
         </div>
         <div style={{display:"flex",gap:6,alignItems:"center"}}>
-          {/* User info */}
-          <span style={{fontSize:11,color:"var(--ink4)",maxWidth:150,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{user.email}</span>
+          <span style={{fontSize:11,color:"var(--ink4)",maxWidth:140,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{user.email}</span>
           <button onClick={expAll} style={hdrBtn}>↓</button>
           <button onClick={impAll} style={hdrBtn}>↑</button>
-          <button onClick={resetAll} style={{...hdrBtn,color:"#f87171"}}>↺</button>
           <button onClick={handleSignOut} style={{padding:"6px 14px",borderRadius:6,border:"1px solid rgba(255,255,255,.15)",background:"rgba(255,255,255,.06)",color:"#fff",fontSize:11,fontWeight:700,cursor:"pointer"}}>Sign Out</button>
         </div>
       </div>
     </header>
-    {tab==="ops"?<DailyOps toast={st} team={team} onAddMember={addMember}/>:<LeadsTab toast={st} team={team} onAddMember={addMember}/>}
+    {tab==="ops"?<DailyOps toast={st} team={team||[]} onAddMember={addMember} days={days} setDays={setDays} opsLoaded={opsLoaded} opsSyncing={opsSyncing}/>
+    :<LeadsTab toast={st} team={team||[]} onAddMember={addMember} leads={leads} setLeads={setLeads} acts={acts} setActs={setActs} leadsLoaded={leadsLoaded&&actsLoaded} leadsSyncing={leadsSyncing} actsSyncing={actsSyncing}/>}
   </div>;
 }
 
