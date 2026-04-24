@@ -63,24 +63,30 @@ function useSharedData(key,defaultVal){
   useEffect(()=>{
     let cancelled=false;
     (async()=>{
-      const{data:row}=await sb.from("shared_store").select("value").eq("key",key).single();
-      if(!cancelled){
-        if(row&&row.value){setData(row.value)}
-        else{setData(defaultVal);/* seed default */await sb.from("shared_store").upsert({key,value:defaultVal})}
-        setLoaded(true);
-      }
+      try{
+        const{data:row,error}=await sb.from("shared_store").select("value").eq("key",key).maybeSingle();
+        if(cancelled)return;
+        if(error){console.error("Load error:",key,error);setData(defaultVal);setLoaded(true);return}
+        if(row&&row.value!=null){setData(row.value)}
+        else{
+          setData(defaultVal);
+          await sb.from("shared_store").upsert({key,value:defaultVal}).then(r=>{if(r.error)console.error("Seed error:",r.error)});
+        }
+      }catch(e){console.error("Hook error:",key,e);setData(defaultVal)}
+      if(!cancelled)setLoaded(true);
     })();
     return()=>{cancelled=true};
   },[key]);
 
   // Debounced save to Supabase when data changes
   useEffect(()=>{
-    if(!loaded)return;
+    if(!loaded||data==null)return;
     if(isFirst.current){isFirst.current=false;return}
     if(saveTimer.current)clearTimeout(saveTimer.current);
     saveTimer.current=setTimeout(async()=>{
       setSyncing(true);
-      await sb.from("shared_store").upsert({key,value:data});
+      const{error}=await sb.from("shared_store").upsert({key,value:data});
+      if(error)console.error("Save error:",key,error);
       setSyncing(false);
     },800);
     return()=>{if(saveTimer.current)clearTimeout(saveTimer.current)};
