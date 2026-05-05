@@ -263,8 +263,9 @@ function DailyOps({toast,team,onAdd,days,setDays,loaded,syncing,projects}){
 /* ═══════════════════════════════════════ */
 /*          LEADS TAB                     */
 /* ═══════════════════════════════════════ */
-function LeadsTab({toast,leads,setLeads,acts,setActs,loaded,syncing,actsSyncing}){
+function LeadsTab({toast,leads,setLeads,acts,setActs,loaded,syncing,actsSyncing,meta,setMeta}){
   const[view,setView]=useState("cards");const[fS,setFS]=useState("");const[fP,setFP]=useState("");const[q,setQ]=useState("");const[exp,setExp]=useState({});
+  const[memoOpen,setMemoOpen]=useState(false);
   /* D&D for cards */
   const[di,setDI]=useState(null);const[dov,setDOV]=useState(null);
   /* D&D for board */
@@ -291,8 +292,25 @@ function LeadsTab({toast,leads,setLeads,acts,setActs,loaded,syncing,actsSyncing}
   const overdue=leads.filter(l=>l.nextFollowup&&l.nextFollowup<td()&&!["Won","Dead"].includes(l.status));
   const mF=l=>{if(fS&&l.status!==fS)return false;if(fP&&l.priority!==fP)return false;if(q){const s=q.toLowerCase();return[l.client,l.job,l.notes,l.id].some(x=>(x||"").toLowerCase().includes(s))}return true};
   const fl=leads.filter(mF);
+  const m=meta||{};const uM=(f,v)=>setMeta(p=>({...(p||{}), [f]:v}));
   return<div style={{animation:"fadeIn .3s"}}>
-    <div style={{padding:"16px 20px",background:"var(--surface)",borderBottom:"1px solid var(--ink6)"}}>
+    {/* Date & Memo Header */}
+    <div style={{padding:"16px 20px 0",background:"var(--surface)"}}>
+      <div style={{display:"flex",alignItems:"center",gap:14,flexWrap:"wrap",marginBottom:12}}>
+        <span style={{fontSize:13,fontWeight:700,color:"var(--ink2)"}}>Last updated on:</span>
+        <input type="date" value={m.lastUpdated||""} onChange={e=>uM("lastUpdated",e.target.value)} style={{padding:"8px 12px",border:"1.5px solid var(--ink6)",borderRadius:"var(--rs)",fontSize:13,outline:"none",background:"var(--surface2)",fontFamily:"inherit",color:"var(--ink)"}}/>
+        {m.lastUpdated&&<span style={{fontSize:12,color:"var(--ink3)"}}>{fmtD(m.lastUpdated)}</span>}
+      </div>
+      <div style={{marginBottom:14}}>
+        <div onClick={()=>setMemoOpen(p=>!p)} style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",userSelect:"none",marginBottom:memoOpen?8:0}}>
+          <span style={{fontSize:10,color:"var(--ink4)",transform:memoOpen?"rotate(90deg)":"",transition:"transform .2s",display:"inline-block"}}>▶</span>
+          <span style={{fontSize:13,fontWeight:700,color:"var(--ink2)"}}>Team's Memo</span>
+          {!memoOpen&&m.memo&&<span style={{fontSize:11,color:"var(--ink4)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:400}}>{m.memo.slice(0,80)}{m.memo.length>80?"...":""}</span>}
+        </div>
+        {memoOpen&&<textarea value={m.memo||""} onChange={e=>uM("memo",e.target.value)} placeholder="Write shared team notes, updates, reminders here..." rows={4} style={{width:"100%",padding:"12px 14px",border:"1.5px solid var(--ink6)",borderRadius:"var(--rs)",fontSize:13,outline:"none",resize:"vertical",fontFamily:"inherit",background:"var(--surface2)",color:"var(--ink)",lineHeight:1.5,transition:"border .15s"}} onFocus={e=>e.target.style.borderColor="var(--accent)"} onBlur={e=>e.target.style.borderColor="var(--ink6)"}/>}
+      </div>
+    </div>
+    <div style={{padding:"0 20px 16px",background:"var(--surface)",borderBottom:"1px solid var(--ink6)"}}>
       <div style={{display:"flex",gap:10,flexWrap:"wrap",marginBottom:14}}>
         <KPI label="Active" val={active.length} c="var(--accent2)" bg="var(--accent-light)"/>
         <KPI label="Hot" val={leads.filter(l=>l.status==="Hot").length} c="var(--red)" bg="var(--red-bg)" icon="🔥"/>
@@ -394,10 +412,11 @@ function App(){
   const[acts,setActs,actsL,actsS]=useSharedData("acts",D_ACT);
   const[team,setTeam,teamL]=useSharedData("team",DEF_TEAM);
   const[projects,setProjects,projL,projS]=useSharedData("projects",D_PROJ);
+  const[leadsMeta,setLeadsMeta,lmL,lmS]=useSharedData("leads_meta",{lastUpdated:"",memo:""});
   const addM=n=>{if(team&&!team.includes(n)){setTeam(p=>[...p,n].sort());st(`${n} added`)}};
   useEffect(()=>{sb.auth.getSession().then(({data:{session}})=>{setUser(session?.user||null);setChecking(false)});const{data:{subscription}}=sb.auth.onAuthStateChange((_,s)=>{setUser(s?.user||null)});return()=>subscription.unsubscribe()},[]);
-  const expAll=()=>{const d={ops:days,leads,acts,team,projects};const b=new Blob([JSON.stringify(d,null,2)],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="niftycode-backup.json";a.click();st("Downloaded")};
-  const impAll=()=>{const i=document.createElement("input");i.type="file";i.accept=".json";i.onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=async ev=>{try{const d=JSON.parse(ev.target.result);if(d.ops)setDays(d.ops);if(d.leads)setLeads(d.leads);if(d.acts||d.act)setActs(d.acts||d.act);if(d.team)setTeam(d.team);if(d.projects)setProjects(d.projects);st("Imported!")}catch{alert("Invalid file")}};r.readAsText(f)};i.click()};
+  const expAll=()=>{const d={ops:days,leads,acts,team,projects,leads_meta:leadsMeta};const b=new Blob([JSON.stringify(d,null,2)],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="niftycode-backup.json";a.click();st("Downloaded")};
+  const impAll=()=>{const i=document.createElement("input");i.type="file";i.accept=".json";i.onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=async ev=>{try{const d=JSON.parse(ev.target.result);if(d.ops)setDays(d.ops);if(d.leads)setLeads(d.leads);if(d.acts||d.act)setActs(d.acts||d.act);if(d.team)setTeam(d.team);if(d.projects)setProjects(d.projects);if(d.leads_meta)setLeadsMeta(d.leads_meta);st("Imported!")}catch{alert("Invalid file")}};r.readAsText(f)};i.click()};
   if(checking)return<div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"var(--navy)",color:"var(--ink4)",fontSize:14}}>Loading...</div>;
   if(!user)return<AuthGate onAuth={setUser}/>;
   return<div style={{minHeight:"100vh",background:"var(--bg)"}}>
@@ -418,7 +437,7 @@ function App(){
     </header>
     {tab==="ops"&&<DailyOps toast={st} team={team||[]} onAdd={addM} days={days} setDays={setDays} loaded={opsL} syncing={opsS} projects={projects}/>}
     {tab==="projects"&&<ProjectsTab toast={st} team={team||[]} onAdd={addM} projects={projects} setProjects={setProjects} loaded={projL} syncing={projS}/>}
-    {tab==="leads"&&<LeadsTab toast={st} leads={leads} setLeads={setLeads} acts={acts} setActs={setActs} loaded={leadsL&&actsL} syncing={leadsS} actsSyncing={actsS}/>}
+    {tab==="leads"&&<LeadsTab toast={st} leads={leads} setLeads={setLeads} acts={acts} setActs={setActs} loaded={leadsL&&actsL} syncing={leadsS} actsSyncing={actsS} meta={leadsMeta} setMeta={setLeadsMeta}/>}
   </div>;
 }
 
