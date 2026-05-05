@@ -88,7 +88,7 @@ let _c=Date.now();const uid=()=>`_${_c++}`;const td=()=>new Date().toISOString()
 const dBtw=(a,b)=>{if(!a||!b)return 0;return Math.floor((new Date(b)-new Date(a))/864e5)};
 const fmtD=d=>{if(!d)return"—";try{return new Date(d+"T00:00:00").toLocaleDateString("en-US",{month:"short",day:"numeric"})}catch{return d}};
 const fmtM=n=>n?`$${Number(n).toLocaleString()}`:"—";
-const bTask=()=>({id:uid(),project:"",member:"",desc1:"",desc2:"",status:"To Do",trello:"",nifty:"",time:"",milestone:""});
+const bTask=()=>({id:uid(),project:"",linkedProject:"",member:"",desc1:"",desc2:"",status:"To Do",trello:"",nifty:"",time:"",milestone:""});
 const bProj=()=>({id:uid(),name:"",client:"",billing:"Hourly",value:0,hoursEstimated:0,hoursUsed:0,status:"Active",startDate:td(),dueDate:"",teamLead:"",trelloLink:"",niftyLink:"",notes:""});
 
 const D_OPS=[{id:"d1",day:"Thursday",date:"2026-04-16",tasks:[{id:"t1",project:"Amro Al Hasan",member:"Hafiz Abdul Manan",desc1:"External lift logic",desc2:"",status:"In Progress",trello:"",nifty:"",time:"",milestone:""}]}];
@@ -200,12 +200,10 @@ function DailyOps({toast,team,onAdd,days,setDays,loaded,syncing,projects}){
   const onDE=e=>{e.currentTarget.classList.remove("dragging");setDI(null);setDOV(null)};
   const onDO=(e,did,tid)=>{e.preventDefault();if(di&&di.did===did&&di.tid!==tid)setDOV({did,tid})};
   const onDr=(e,did,tid)=>{e.preventDefault();setDOV(null);if(!di||di.did!==did)return;setDays(p=>p.map(d=>{if(d.id!==did)return d;const ts=[...d.tasks];const fi=ts.findIndex(t=>t.id===di.tid);const ti=ts.findIndex(t=>t.id===tid);if(fi<0||ti<0||fi===ti)return d;const[m]=ts.splice(fi,1);ts.splice(ti,0,m);return{...d,tasks:ts}}));setDI(null);toast("Reordered")};
-  /* Project select handler */
-  const setProjVal=(did,tid,v)=>{if(v==="__custom__"){const n=prompt("Enter project name:");if(n)uTask(did,tid,"project",n)}else uTask(did,tid,"project",v)};
   const gS=ts=>({total:ts.length,done:ts.filter(x=>x.status==="Completed").length,hrs:ts.reduce((s,x)=>s+(parseFloat(x.time)||0),0)});
   const gs=gS(days.flatMap(d=>d.tasks));
-  const mF=t=>{if(fM&&t.member!==fM)return false;if(fS&&t.status!==fS)return false;if(q){const s=q.toLowerCase();return[t.project,t.desc1,t.desc2,t.member].some(x=>(x||"").toLowerCase().includes(s))}return true};
-  const gc="24px 2fr 1fr 1.5fr 1fr 1.2fr .55fr .55fr .45fr .75fr 30px";
+  const mF=t=>{if(fM&&t.member!==fM)return false;if(fS&&t.status!==fS)return false;if(q){const s=q.toLowerCase();return[t.project,t.linkedProject,t.desc1,t.desc2,t.member].some(x=>(x||"").toLowerCase().includes(s))}return true};
+  const gc="24px 2fr 1.2fr 1fr 1.5fr 1fr 1.2fr .55fr .55fr .45fr .75fr 30px";
   const projNames=(projects||[]).filter(p=>p.status==="Active");
   return<div style={{animation:"fadeIn .3s"}}>
     <div style={{padding:"12px 20px",background:"var(--surface)",borderBottom:"1px solid var(--ink6)",display:"flex",gap:10,flexWrap:"wrap",alignItems:"center"}}>
@@ -236,12 +234,14 @@ function DailyOps({toast,team,onAdd,days,setDays,loaded,syncing,projects}){
             </div>
           </div>
           {isOpen&&<div style={{overflowX:"auto",padding:"4px 10px 12px"}}>
-            <div style={{display:"grid",gridTemplateColumns:gc,gap:6,padding:"8px 4px 6px",borderBottom:"2px solid var(--ink7)",minWidth:1030}}><div/>{["Project","Team","Description","Notes","Status","Trello","Nifty","Hrs","Milestone",""].map(h=><div key={h} style={{fontSize:10,fontWeight:700,color:"var(--ink4)",textTransform:"uppercase",letterSpacing:".05em"}}>{h}</div>)}</div>
+            <div style={{display:"grid",gridTemplateColumns:gc,gap:6,padding:"8px 4px 6px",borderBottom:"2px solid var(--ink7)",minWidth:1150}}><div/>{["Project & Client","Linked Project","Team","Description","Notes","Status","Trello","Nifty","Hrs","Milestone",""].map(h=><div key={h} style={{fontSize:10,fontWeight:700,color:"var(--ink4)",textTransform:"uppercase",letterSpacing:".05em"}}>{h}</div>)}</div>
             {ft.map((t,i)=>{const isDO=dov&&dov.did===day.id&&dov.tid===t.id;
-              return<div key={t.id} draggable className={`row-hover${isDO?" drag-over":""}`} onDragStart={e=>onDS(e,day.id,t.id)} onDragEnd={onDE} onDragOver={e=>onDO(e,day.id,t.id)} onDragLeave={()=>setDOV(null)} onDrop={e=>onDr(e,day.id,t.id)} style={{display:"grid",gridTemplateColumns:gc,gap:6,padding:"6px 4px",borderBottom:"1px solid var(--ink7)",alignItems:"center",minWidth:1030,background:i%2?"var(--surface2)":"var(--surface)"}}>
+              return<div key={t.id} draggable className={`row-hover${isDO?" drag-over":""}`} onDragStart={e=>onDS(e,day.id,t.id)} onDragEnd={onDE} onDragOver={e=>onDO(e,day.id,t.id)} onDragLeave={()=>setDOV(null)} onDrop={e=>onDr(e,day.id,t.id)} style={{display:"grid",gridTemplateColumns:gc,gap:6,padding:"6px 4px",borderBottom:"1px solid var(--ink7)",alignItems:"center",minWidth:1150,background:i%2?"var(--surface2)":"var(--surface)"}}>
               <div className="drag-handle">⠿</div>
-              {/* Dynamic project select */}
-              {projNames.length>0?<ProjSel value={t.project} onChange={v=>setProjVal(day.id,t.id,v)} projects={projNames}/>:<Inp value={t.project} onChange={v=>uTask(day.id,t.id,"project",v)} ph="Project..." bold/>}
+              {/* Original text column preserved */}
+              <Inp value={t.project} onChange={v=>uTask(day.id,t.id,"project",v)} ph="Project & Client..." bold/>
+              {/* NEW separate linked project dropdown */}
+              <ProjSel value={t.linkedProject} onChange={v=>{if(v==="__custom__"){const n=prompt("Enter name:");if(n)uTask(day.id,t.id,"linkedProject",n)}else uTask(day.id,t.id,"linkedProject",v)}} projects={projNames}/>
               <TeamSel value={t.member} onChange={v=>uTask(day.id,t.id,"member",v)} team={team} onAdd={onAdd}/>
               <Inp value={t.desc1} onChange={v=>uTask(day.id,t.id,"desc1",v)} ph="Task details..."/>
               <Inp value={t.desc2} onChange={v=>uTask(day.id,t.id,"desc2",v)} ph="Notes..."/>
