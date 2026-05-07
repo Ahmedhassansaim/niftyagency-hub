@@ -263,15 +263,34 @@ function DailyOps({toast,team,onAdd,days,setDays,loaded,syncing,projects}){
 /* ═══════════════════════════════════════ */
 /*          LEADS TAB                     */
 /* ═══════════════════════════════════════ */
-function LeadsTab({toast,leads,setLeads,acts,setActs,loaded,syncing,actsSyncing,meta,setMeta}){
+function LeadsTab({toast,leads,setLeads,acts,setActs,loaded,syncing,actsSyncing,meta,setMeta,projects,setProjects}){
   const[view,setView]=useState("cards");const[fS,setFS]=useState("");const[fP,setFP]=useState("");const[q,setQ]=useState("");const[exp,setExp]=useState({});
   const[memoOpen,setMemoOpen]=useState(false);
+  const[modalId,setModalId]=useState(null); /* board popup */
   /* D&D for cards */
   const[di,setDI]=useState(null);const[dov,setDOV]=useState(null);
   /* D&D for board */
-  const[boardDrag,setBoardDrag]=useState(null);const[boardOver,setBoardOver]=useState(null);
+  const[boardDrag,setBoardDrag]=useState(null);const[boardOver,setBoardOver]=useState(null);const didDrag=useRef(false);
   if(!loaded||!leads||!acts)return<div style={{padding:40,textAlign:"center",color:"var(--ink4)"}}>Loading...</div>;
-  const uL=(id,f,v)=>setLeads(p=>p.map(l=>l.id===id?{...l,[f]:v}:l));
+
+  /* Auto-create project when lead is marked Won */
+  const wonToProject=(lead)=>{
+    if(!projects||!setProjects)return;
+    const already=(projects||[]).some(p=>p.fromLeadId===lead.id);
+    if(already){toast("Project already exists for this lead");return}
+    const newProj={id:uid(),name:lead.job||lead.client||"Won Lead",client:lead.client||"",billing:"Milestone",value:lead.budget||0,hoursEstimated:0,hoursUsed:0,status:"Active",startDate:td(),dueDate:"",teamLead:"",trelloLink:"",niftyLink:"",notes:`Auto-created from lead ${lead.id}`,fromLeadId:lead.id};
+    setProjects(p=>[...p,newProj]);
+    toast("🏆 Project created from won lead!");
+  };
+
+  const uL=(id,f,v)=>{
+    /* Intercept status change to Won */
+    if(f==="status"&&v==="Won"){
+      const lead=leads.find(l=>l.id===id);
+      if(lead&&lead.status!=="Won"){setTimeout(()=>wonToProject({...lead,status:v}),100)}
+    }
+    setLeads(p=>p.map(l=>l.id===id?{...l,[f]:v}:l));
+  };
   const aL=()=>{const n=leads.length+1;setLeads(p=>[...p,{id:`L-${String(n).padStart(3,"0")}`,client:"",job:"",source:"",type:"",budget:0,firstContact:td(),lastContact:td(),nextFollowup:"",status:"New",priority:"Medium",proposalSent:false,notes:""}]);toast("Lead added")};
   const dL=id=>{if(confirm("Delete?")){setLeads(p=>p.filter(l=>l.id!==id));setActs(p=>p.filter(a=>a.leadId!==id));toast("Deleted")}};
   const aA=lid=>{setActs(p=>[{id:uid(),date:td(),leadId:lid||"",type:"Note",summary:"",next:""},...p]);toast("Activity logged")};
@@ -283,9 +302,10 @@ function LeadsTab({toast,leads,setLeads,acts,setActs,loaded,syncing,actsSyncing,
   const cDO=(e,id)=>{e.preventDefault();if(di&&di!==id)setDOV(id)};
   const cDr=(e,id)=>{e.preventDefault();setDOV(null);if(!di||di===id)return;setLeads(p=>{const arr=[...p];const fi=arr.findIndex(l=>l.id===di);const ti=arr.findIndex(l=>l.id===id);if(fi<0||ti<0)return p;const[m]=arr.splice(fi,1);arr.splice(ti,0,m);return arr});setDI(null);toast("Reordered")};
   /* Board D&D */
-  const bDS=(e,id)=>{setBoardDrag(id);e.dataTransfer.effectAllowed="move"};
+  const bDS=(e,id)=>{setBoardDrag(id);didDrag.current=true;e.dataTransfer.effectAllowed="move"};
   const bDO=(e,status)=>{e.preventDefault();setBoardOver(status)};
   const bDr=(e,status)=>{e.preventDefault();setBoardOver(null);if(!boardDrag)return;uL(boardDrag,"status",status);setBoardDrag(null);toast(`Moved to ${status}`)};
+  const boardCardClick=(id)=>{if(didDrag.current){didDrag.current=false;return}setModalId(id)};
   const active=leads.filter(l=>!["Won","Dead"].includes(l.status));
   const pipeline=active.reduce((s,l)=>s+(+l.budget||0),0);
   const weighted=leads.reduce((s,l)=>{const x=getLS(l.status);return s+(+l.budget||0)*(x?x.p/100:0)},0);
@@ -380,7 +400,7 @@ function LeadsTab({toast,leads,setLeads,acts,setActs,loaded,syncing,actsSyncing,
             <div style={{padding:"10px 14px",borderBottom:`2.5px solid ${s?s.bd:"var(--ink6)"}`,background:s?s.bg:"var(--surface2)"}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}><span style={{fontWeight:800,fontSize:13,color:s?s.c:"var(--ink3)"}}>{status}</span><span style={{background:"var(--navy)",color:"#fff",fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:99}}>{items.length}</span></div>{tot>0&&<div style={{fontSize:11,color:"var(--ink3)",marginTop:3,fontWeight:600}}>{fmtM(tot)}</div>}</div>
             <div style={{padding:8,display:"flex",flexDirection:"column",gap:8,minHeight:80}}>
               {items.map(l=>{const isOD=l.nextFollowup&&l.nextFollowup<td()&&!["Won","Dead"].includes(l.status);const isDragging=boardDrag===l.id;
-                return<div key={l.id} draggable onDragStart={e=>bDS(e,l.id)} onDragEnd={()=>setBoardDrag(null)} className={`board-card${isDragging?" dragging":""}`} style={{background:"var(--surface2)",borderRadius:8,padding:"10px 12px",border:`1px solid ${isOD?"var(--red-bd)":"var(--ink7)"}`,cursor:"grab"}}>
+                return<div key={l.id} draggable onDragStart={e=>bDS(e,l.id)} onDragEnd={()=>{setBoardDrag(null);setTimeout(()=>{didDrag.current=false},50)}} onClick={()=>boardCardClick(l.id)} className={`board-card${isDragging?" dragging":""}`} style={{background:"var(--surface2)",borderRadius:8,padding:"10px 12px",border:`1px solid ${isOD?"var(--red-bd)":"var(--ink7)"}`,cursor:"pointer"}}>
                   <div style={{fontWeight:700,fontSize:13,marginBottom:3}}>{l.client||"—"}</div>
                   <div style={{fontSize:11,color:"var(--ink3)",marginBottom:6}}>{l.job||""}</div>
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}><span style={{fontSize:14,fontWeight:800,color:"var(--green)"}}>{l.budget?fmtM(l.budget):""}</span><span style={{fontSize:9,fontWeight:700,padding:"2px 7px",borderRadius:99,background:l.priority==="High"?"var(--red-bg)":"var(--ink7)",color:l.priority==="High"?"var(--red)":"var(--ink3)"}}>{l.priority}</span></div>
@@ -400,10 +420,64 @@ function LeadsTab({toast,leads,setLeads,acts,setActs,loaded,syncing,actsSyncing,
         </div>
       </div>}
     </div>
+
+    {/* ═══ BOARD CARD MODAL ═══ */}
+    {modalId&&(()=>{
+      const l=leads.find(x=>x.id===modalId);if(!l)return null;
+      const aging=dBtw(l.firstContact,td());const since=dBtw(l.lastContact,td());
+      const isOD=l.nextFollowup&&l.nextFollowup<td()&&!["Won","Dead"].includes(l.status);
+      const isDT=l.nextFollowup===td();const st=getLS(l.status);
+      const lA=acts.filter(a=>a.leadId===l.id).sort((a,b)=>(b.date||"").localeCompare(a.date||""));
+      return<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.5)",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",padding:20,animation:"fadeIn .2s"}} onClick={e=>{if(e.target===e.currentTarget)setModalId(null)}}>
+        <div style={{background:"var(--surface)",borderRadius:14,width:"100%",maxWidth:720,maxHeight:"90vh",overflow:"auto",boxShadow:"0 24px 80px rgba(0,0,0,.3)"}}>
+          {/* Modal header */}
+          <div style={{padding:"18px 24px",borderBottom:"1px solid var(--ink6)",display:"flex",justifyContent:"space-between",alignItems:"center",position:"sticky",top:0,background:"var(--surface)",zIndex:1,borderRadius:"14px 14px 0 0"}}>
+            <div style={{display:"flex",alignItems:"center",gap:10}}>
+              <div style={{width:10,height:10,borderRadius:99,background:st?st.c:"var(--ink5)"}}/>
+              <span style={{fontSize:12,fontWeight:700,color:"var(--ink4)",fontFamily:"monospace"}}>{l.id}</span>
+              <span style={{fontSize:16,fontWeight:800}}>{l.client||"Untitled"}</span>
+              <Badge c={st?st.c:"var(--ink3)"} bg={st?st.bg:"var(--ink7)"} bd={st?st.bd:"var(--ink6)"}>{l.status}</Badge>
+            </div>
+            <button onClick={()=>setModalId(null)} style={{width:34,height:34,borderRadius:8,border:"none",background:"var(--ink7)",color:"var(--ink3)",fontSize:18,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
+          </div>
+          {/* Modal body — same form as expanded card */}
+          <div style={{padding:"20px 24px"}}>
+            {isOD&&<div style={{padding:"8px 14px",borderRadius:"var(--rs)",background:"var(--red-bg)",border:"1px solid var(--red-bd)",color:"var(--red)",fontSize:12,fontWeight:700,marginBottom:16}}>⚠ Follow-up overdue — {Math.abs(dBtw(l.nextFollowup,td()))} days</div>}
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:14,marginBottom:16}}>
+              <div><div style={FL}>Client</div><Inp value={l.client} onChange={v=>uL(l.id,"client",v)} ph="Username..." bold/></div>
+              <div><div style={FL}>Job</div><Inp value={l.job} onChange={v=>uL(l.id,"job",v)} ph="Title..."/></div>
+              <div><div style={FL}>Source</div><Sel value={l.source} onChange={v=>uL(l.id,"source",v)} options={SOURCES} ph="Source..."/></div>
+              <div><div style={FL}>Type</div><Sel value={l.type} onChange={v=>uL(l.id,"type",v)} options={PTYPES} ph="Type..."/></div>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:14,marginBottom:16}}>
+              <div><div style={FL}>Budget</div><Inp value={l.budget?String(l.budget):""} onChange={v=>uL(l.id,"budget",parseFloat(v.replace(/[^0-9.]/g,""))||0)} ph="0" mono/></div>
+              <div><div style={FL}>Status</div><Sel value={l.status} onChange={v=>uL(l.id,"status",v)} options={LEAD_ST} ph="Status..." sty={LEAD_ST}/></div>
+              <div><div style={FL}>Priority</div><Sel value={l.priority} onChange={v=>uL(l.id,"priority",v)} options={PRIOS}/></div>
+              <div><div style={FL}>Proposal?</div><button onClick={()=>uL(l.id,"proposalSent",!l.proposalSent)} style={{width:"100%",padding:"8px",borderRadius:"var(--rs)",border:`1.5px solid ${l.proposalSent?"var(--green-bd)":"var(--ink6)"}`,background:l.proposalSent?"var(--green-bg)":"var(--surface)",color:l.proposalSent?"var(--green)":"var(--ink4)",fontSize:13,fontWeight:700,cursor:"pointer"}}>{l.proposalSent?"✓ Yes":"No"}</button></div>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:14,marginBottom:16}}>
+              <div><div style={FL}>First Contact</div><DtInp value={l.firstContact} onChange={v=>uL(l.id,"firstContact",v)}/></div>
+              <div><div style={FL}>Last Contact</div><DtInp value={l.lastContact} onChange={v=>uL(l.id,"lastContact",v)}/></div>
+              <div><div style={FL}>Next Follow-up</div><DtInp value={l.nextFollowup} onChange={v=>uL(l.id,"nextFollowup",v)} warn={isOD?"overdue":isDT?"today":""}/></div>
+              <div><div style={FL}>Aging</div><div style={{padding:"8px 10px",background:"var(--ink7)",borderRadius:"var(--rs)",fontSize:13}}><strong style={{color:aging>14?"var(--red)":"var(--green)"}}>{aging}d</strong> total · <strong>{since}d</strong> since last</div></div>
+            </div>
+            <div style={{marginBottom:16}}><div style={FL}>Notes</div><textarea value={l.notes||""} onChange={e=>uL(l.id,"notes",e.target.value)} rows={3} style={{width:"100%",padding:"10px 12px",border:"1.5px solid var(--ink6)",borderRadius:"var(--rs)",fontSize:13,outline:"none",resize:"vertical",fontFamily:"inherit",background:"var(--surface2)"}}/></div>
+            {/* Activities in modal */}
+            <div style={{marginBottom:14}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}><span style={{fontWeight:700,fontSize:13}}>Activities ({lA.length})</span><button onClick={()=>aA(l.id)} style={{padding:"5px 12px",borderRadius:"var(--rs)",border:"1.5px solid var(--accent-border)",background:"var(--accent-light)",color:"var(--accent2)",fontSize:12,fontWeight:700,cursor:"pointer"}}>+ Log</button></div>
+              {lA.map(a=><div key={a.id} style={{display:"grid",gridTemplateColumns:"100px 140px 1fr 1fr 30px",gap:8,padding:"5px 0",borderBottom:"1px solid var(--ink7)",alignItems:"center"}}><DtInp value={a.date} onChange={v=>uA(a.id,"date",v)}/><Sel value={a.type} onChange={v=>uA(a.id,"type",v)} options={ACT_TYPES} ph="Type..."/><Inp value={a.summary} onChange={v=>uA(a.id,"summary",v)} ph="Summary..."/><Inp value={a.next} onChange={v=>uA(a.id,"next",v)} ph="Next..."/><Del onClick={()=>dA(a.id)}/></div>)}
+              {lA.length===0&&<div style={{padding:12,textAlign:"center",color:"var(--ink4)",fontSize:12,background:"var(--ink7)",borderRadius:"var(--rs)"}}>No activities yet</div>}
+            </div>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",paddingTop:8,borderTop:"1px solid var(--ink7)"}}>
+              <button onClick={()=>{dL(l.id);setModalId(null)}} style={{padding:"7px 18px",borderRadius:"var(--rs)",border:"1.5px solid var(--red-bd)",background:"var(--red-bg)",color:"var(--red)",fontSize:12,fontWeight:700,cursor:"pointer"}}>Delete Lead</button>
+              <button onClick={()=>setModalId(null)} style={{padding:"7px 18px",borderRadius:"var(--rs)",border:"none",background:"var(--accent)",color:"#fff",fontSize:12,fontWeight:700,cursor:"pointer"}}>Done</button>
+            </div>
+          </div>
+        </div>
+      </div>;
+    })()}
   </div>;
 }
-
-/* ═══ MAIN APP ═══ */
 function App(){
   const[user,setUser]=useState(null);const[checking,setChecking]=useState(true);const[tab,setTab]=useState("ops");const[toast,setToast]=useState(null);
   const st=m=>{setToast(m);setTimeout(()=>setToast(null),2200)};
@@ -437,7 +511,7 @@ function App(){
     </header>
     {tab==="ops"&&<DailyOps toast={st} team={team||[]} onAdd={addM} days={days} setDays={setDays} loaded={opsL} syncing={opsS} projects={projects}/>}
     {tab==="projects"&&<ProjectsTab toast={st} team={team||[]} onAdd={addM} projects={projects} setProjects={setProjects} loaded={projL} syncing={projS}/>}
-    {tab==="leads"&&<LeadsTab toast={st} leads={leads} setLeads={setLeads} acts={acts} setActs={setActs} loaded={leadsL&&actsL} syncing={leadsS} actsSyncing={actsS} meta={leadsMeta} setMeta={setLeadsMeta}/>}
+    {tab==="leads"&&<LeadsTab toast={st} leads={leads} setLeads={setLeads} acts={acts} setActs={setActs} loaded={leadsL&&actsL} syncing={leadsS} actsSyncing={actsS} meta={leadsMeta} setMeta={setLeadsMeta} projects={projects} setProjects={setProjects}/>}
   </div>;
 }
 
