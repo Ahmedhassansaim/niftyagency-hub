@@ -153,83 +153,163 @@ function NotifBell({leads,projects,acts,dismissed,setDismissed}){
 /* ═══ PROJECTS TAB (with Activity Logs) ═══ */
 function ProjectsTab({toast,team,onAdd,projects,setProjects,loaded,syncing,pActs,setPActs,days}){
   const[fS,setFS]=useState("");const[q,setQ]=useState("");const[exp,setExp]=useState({});const[actOpen,setActOpen]=useState({});
+  const[view,setView]=useState("cards");const[modalId,setModalId]=useState(null);
+  const[boardDrag,setBoardDrag]=useState(null);const[boardOver,setBoardOver]=useState(null);const didDrag=useRef(false);
   if(!loaded||!projects)return<div style={{padding:40,textAlign:"center",color:"var(--ink4)"}}>Loading...</div>;
   const uP=(id,f,v)=>setProjects(p=>p.map(x=>x.id===id?{...x,[f]:v}:x));
   const aP=()=>{setProjects(p=>[...p,bProj()]);toast("Project added")};
   const dP=id=>{if(confirm("Delete?")){setProjects(p=>p.filter(x=>x.id!==id));setPActs(p=>(p||[]).filter(a=>a.projectId!==id));toast("Deleted")}};
-  // Project activities CRUD
   const addPA=pid=>{setPActs(p=>[{id:uid(),date:td(),projectId:pid,type:"Note",summary:"",next:""},...(p||[])]);toast("Activity logged")};
   const uPA=(id,f,v)=>setPActs(p=>(p||[]).map(a=>a.id===id?{...a,[f]:v}:a));
   const dPA=id=>setPActs(p=>(p||[]).filter(a=>a.id!==id));
-  // Get linked ops tasks for a project
   const getLinkedOps=(projName)=>{if(!days||!projName)return[];const tasks=[];(days||[]).forEach(d=>{d.tasks.forEach(t=>{if(t.linkedProject===projName||t.project===projName){tasks.push({...t,dayDate:d.date,dayName:d.day})}})});return tasks.sort((a,b)=>(b.dayDate||"").localeCompare(a.dayDate||""))};
+  /* Board D&D */
+  const bDS=(e,id)=>{setBoardDrag(id);didDrag.current=true;e.dataTransfer.effectAllowed="move"};
+  const bDO=(e,s)=>{e.preventDefault();setBoardOver(s)};
+  const bDr=(e,s)=>{e.preventDefault();setBoardOver(null);if(!boardDrag)return;uP(boardDrag,"status",s);setBoardDrag(null);toast(`Moved to ${s}`)};
+  const bClick=id=>{if(didDrag.current){didDrag.current=false;return}setModalId(id)};
   const active=projects.filter(p=>p.status==="Active");const totalVal=active.reduce((s,p)=>s+(+p.value||0),0);const totalHrs=projects.reduce((s,p)=>s+(+p.hoursUsed||0),0);
   const mF=p=>{if(fS&&p.status!==fS)return false;if(q){const s=q.toLowerCase();return[p.name,p.client,p.notes].some(x=>(x||"").toLowerCase().includes(s))}return true};
   const fl=projects.filter(mF);
+
+  /* Reusable project detail form */
+  const ProjForm=({p})=>{
+    const st=getPS(p.status);const hrPct=p.hoursEstimated?Math.round((p.hoursUsed/p.hoursEstimated)*100):0;
+    const projActs=(pActs||[]).filter(a=>a.projectId===p.id).sort((a,b)=>(b.date||"").localeCompare(a.date||""));
+    const linkedOps=getLinkedOps(p.name);const isAO=actOpen[p.id];
+    return<div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:14,marginBottom:16}}>
+        <div><div style={FL}>Name</div><Inp value={p.name} onChange={v=>uP(p.id,"name",v)} ph="Project name..." bold/></div>
+        <div><div style={FL}>Client</div><Inp value={p.client} onChange={v=>uP(p.id,"client",v)} ph="Client..."/></div>
+        <div><div style={FL}>Billing</div><Sel value={p.billing} onChange={v=>uP(p.id,"billing",v)} options={BILL}/></div>
+        <div><div style={FL}>Status</div><Sel value={p.status} onChange={v=>uP(p.id,"status",v)} options={PROJ_ST} sty={PROJ_ST}/></div>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:14,marginBottom:16}}>
+        <div><div style={FL}>Value ($)</div><Inp value={p.value?String(p.value):""} onChange={v=>uP(p.id,"value",parseFloat(v.replace(/[^0-9.]/g,""))||0)} ph="0" mono/></div>
+        <div><div style={FL}>Hrs Est</div><Inp value={p.hoursEstimated?String(p.hoursEstimated):""} onChange={v=>uP(p.id,"hoursEstimated",parseFloat(v)||0)} ph="0" mono/></div>
+        <div><div style={FL}>Hrs Used</div><Inp value={p.hoursUsed?String(p.hoursUsed):""} onChange={v=>uP(p.id,"hoursUsed",parseFloat(v)||0)} ph="0" mono/></div>
+        <div><div style={FL}>Lead</div><TeamSel value={p.teamLead} onChange={v=>uP(p.id,"teamLead",v)} team={team} onAdd={onAdd}/></div>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:14,marginBottom:16}}>
+        <div><div style={FL}>Start</div><DtInp value={p.startDate} onChange={v=>uP(p.id,"startDate",v)}/></div>
+        <div><div style={FL}>Due</div><DtInp value={p.dueDate} onChange={v=>uP(p.id,"dueDate",v)}/></div>
+        <div><div style={FL}>Trello</div><Inp value={p.trelloLink} onChange={v=>uP(p.id,"trelloLink",v)} ph="URL..."/></div>
+        <div><div style={FL}>Nifty</div><Inp value={p.niftyLink} onChange={v=>uP(p.id,"niftyLink",v)} ph="URL..."/></div>
+      </div>
+      <div style={{marginBottom:16}}><div style={FL}>Notes</div><textarea value={p.notes||""} onChange={e=>uP(p.id,"notes",e.target.value)} rows={2} style={{width:"100%",padding:"10px 12px",border:"1.5px solid var(--ink6)",borderRadius:"var(--rs)",fontSize:13,outline:"none",resize:"vertical",fontFamily:"inherit",background:"var(--surface)"}}/></div>
+      {/* ── Activity Log (improved layout) ── */}
+      <div style={{marginBottom:14,background:"var(--surface)",borderRadius:"var(--rs)",border:"1px solid var(--ink6)",overflow:"hidden"}}>
+        <div style={{padding:"10px 14px",background:"var(--ink7)",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <div onClick={()=>setActOpen(x=>({...x,[p.id]:!x[p.id]}))} style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",flex:1}}>
+            <span style={{fontSize:10,color:"var(--ink4)",transform:isAO?"rotate(90deg)":"",transition:"transform .2s",display:"inline-block"}}>▶</span>
+            <span style={{fontWeight:700,fontSize:13}}>Activity Log ({projActs.length})</span>
+            {linkedOps.length>0&&<span style={{fontSize:11,color:"var(--ink4)"}}>+ {linkedOps.length} ops tasks</span>}
+          </div>
+          <button onClick={e=>{e.stopPropagation();addPA(p.id);setActOpen(x=>({...x,[p.id]:true}))}} style={{padding:"6px 16px",borderRadius:"var(--rs)",border:"none",background:"var(--accent)",color:"#fff",fontSize:12,fontWeight:700,cursor:"pointer"}}>+ Log Activity</button>
+        </div>
+        {isAO&&<div style={{padding:"10px 14px"}}>
+          {/* Manual activities */}
+          {projActs.length>0&&<div style={{marginBottom:linkedOps.length?12:0}}>
+            <div style={{fontSize:10,fontWeight:700,color:"var(--ink4)",textTransform:"uppercase",marginBottom:6}}>Manual Logs</div>
+            {projActs.map(a=><div key={a.id} style={{display:"grid",gridTemplateColumns:"100px 140px 1fr 1fr 30px",gap:8,padding:"6px 0",borderBottom:"1px solid var(--ink7)",alignItems:"center"}}><DtInp value={a.date} onChange={v=>uPA(a.id,"date",v)}/><Sel value={a.type} onChange={v=>uPA(a.id,"type",v)} options={PROJ_ACT_TYPES} ph="Type..."/><Inp value={a.summary} onChange={v=>uPA(a.id,"summary",v)} ph="What was done..."/><Inp value={a.next} onChange={v=>uPA(a.id,"next",v)} ph="Next step..."/><Del onClick={()=>dPA(a.id)}/></div>)}
+          </div>}
+          {/* Linked ops tasks */}
+          {linkedOps.length>0&&<div>
+            <div style={{fontSize:10,fontWeight:700,color:"var(--ink4)",textTransform:"uppercase",marginBottom:6}}>Linked Ops Tasks</div>
+            {linkedOps.map(t=><div key={t.id} style={{display:"grid",gridTemplateColumns:"80px 1fr 100px 100px",gap:8,padding:"5px 0",borderBottom:"1px solid var(--ink7)",fontSize:12,color:"var(--ink3)"}}>
+              <span style={{fontWeight:600}}>{fmtD(t.dayDate)}</span><span>{t.desc1||t.project}</span><span>{t.member}</span><span style={{fontWeight:600}}>{t.status}</span>
+            </div>)}
+          </div>}
+          {projActs.length===0&&linkedOps.length===0&&<div style={{padding:16,textAlign:"center",color:"var(--ink4)",fontSize:12}}>No activities yet — click "+ Log Activity" above</div>}
+        </div>}
+      </div>
+    </div>;
+  };
+
   return<div style={{animation:"fadeIn .3s"}}>
     <div style={{padding:"16px 20px",background:"var(--surface)",borderBottom:"1px solid var(--ink6)"}}>
       <div style={{display:"flex",gap:10,flexWrap:"wrap",marginBottom:14}}>
         <KPI label="Active" val={active.length} c="var(--green)" bg="var(--green-bg)" icon="📂"/><KPI label="Total" val={projects.length} c="var(--accent2)" bg="var(--accent-light)"/><KPI label="Value" val={fmtM(totalVal)} c="var(--green)" bg="var(--green-bg)"/><KPI label="Hours" val={totalHrs} c="var(--cyan)" bg="var(--cyan-bg)" icon="⏱"/><KPI label="Done" val={projects.filter(p=>p.status==="Completed").length} c="var(--accent2)" bg="var(--accent-light)" icon="✓"/>
       </div>
-      <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}><input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search..." style={{padding:"8px 14px",borderRadius:"var(--r)",border:"1.5px solid var(--ink6)",fontSize:13,width:170,outline:"none",background:"var(--surface2)"}}/><select value={fS} onChange={e=>setFS(e.target.value)} style={fltSel}><option value="">All Status</option>{PROJ_ST.map(s=><option key={s.v}>{s.v}</option>)}</select><div style={{flex:1}}/><Sync s={syncing}/><button onClick={aP} style={btnP}>+ New Project</button></div>
+      <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
+        <div style={{display:"flex",background:"var(--surface3)",borderRadius:8,padding:3,gap:2}}>
+          {[["cards","📋 Cards"],["board","◫ Board"]].map(([k,l])=><button key={k} onClick={()=>setView(k)} style={{padding:"7px 14px",borderRadius:6,border:"none",fontSize:12,fontWeight:600,cursor:"pointer",background:view===k?"var(--surface)":"transparent",color:view===k?"var(--ink)":"var(--ink3)",boxShadow:view===k?"0 1px 3px rgba(0,0,0,.06)":"none"}}>{l}</button>)}
+        </div>
+        <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search..." style={{padding:"8px 14px",borderRadius:"var(--r)",border:"1.5px solid var(--ink6)",fontSize:13,width:170,outline:"none",background:"var(--surface2)"}}/>
+        <select value={fS} onChange={e=>setFS(e.target.value)} style={fltSel}><option value="">All Status</option>{PROJ_ST.map(s=><option key={s.v}>{s.v}</option>)}</select>
+        <div style={{flex:1}}/><Sync s={syncing}/><button onClick={aP} style={btnP}>+ New Project</button>
+      </div>
     </div>
-    <div style={{padding:"16px 20px 60px",display:"flex",flexDirection:"column",gap:10}}>
-      {fl.map(p=>{const st=getPS(p.status);const isE=exp[p.id];const hrPct=p.hoursEstimated?Math.round((p.hoursUsed/p.hoursEstimated)*100):0;
-        const projActs=(pActs||[]).filter(a=>a.projectId===p.id).sort((a,b)=>(b.date||"").localeCompare(a.date||""));
-        const linkedOps=getLinkedOps(p.name);const isActOpen=actOpen[p.id];
-        return<div key={p.id} style={{background:"var(--surface)",borderRadius:"var(--r)",border:"1px solid var(--ink6)",overflow:"hidden"}}>
-          <div style={{display:"flex",alignItems:"center",gap:16,padding:"14px 20px",cursor:"pointer",flexWrap:"wrap"}} onClick={()=>setExp(x=>({...x,[p.id]:!x[p.id]}))}>
-            <div style={{width:10,height:10,borderRadius:99,background:st?st.c:"var(--ink5)",flexShrink:0}}/>
-            <div style={{flex:"2 1 200px",minWidth:0}}><div style={{fontSize:15,fontWeight:700,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{p.name||"Untitled"}</div><div style={{fontSize:12,color:"var(--ink3)",marginTop:1}}>{p.client||"No client"}</div></div>
-            <Badge c={st?st.c:"var(--ink3)"} bg={st?st.bg:"var(--ink7)"} bd={st?st.bd:"var(--ink6)"}>{p.status}</Badge>
-            <span style={{fontSize:11,fontWeight:700,padding:"3px 10px",borderRadius:99,background:"var(--ink7)",color:"var(--ink3)"}}>{p.billing}</span>
-            <div style={{textAlign:"right",minWidth:70}}><div style={{fontSize:18,fontWeight:800,color:"var(--green)"}}>{p.value?fmtM(p.value):""}</div></div>
-            <div style={{minWidth:80}}><div style={{fontSize:10,color:"var(--ink4)",marginBottom:2}}>Hrs: {p.hoursUsed||0}/{p.hoursEstimated||0}</div><div style={{width:80,height:5,background:"var(--ink7)",borderRadius:3,overflow:"hidden"}}><div style={{width:`${Math.min(hrPct,100)}%`,height:"100%",background:hrPct>90?"var(--red)":hrPct>70?"var(--amber)":"var(--green)",borderRadius:3}}/></div></div>
-            <span style={{color:"var(--ink5)",fontSize:10,transform:isE?"rotate(180deg)":"",transition:"transform .2s",display:"inline-block"}}>▼</span>
+    <div style={{padding:"16px 20px 60px"}}>
+      {/* CARDS VIEW */}
+      {view==="cards"&&<div style={{display:"flex",flexDirection:"column",gap:10}}>
+        {fl.map(p=>{const st=getPS(p.status);const isE=exp[p.id];const hrPct=p.hoursEstimated?Math.round((p.hoursUsed/p.hoursEstimated)*100):0;
+          return<div key={p.id} style={{background:"var(--surface)",borderRadius:"var(--r)",border:"1px solid var(--ink6)",overflow:"hidden"}}>
+            <div style={{display:"flex",alignItems:"center",gap:16,padding:"14px 20px",cursor:"pointer",flexWrap:"wrap"}} onClick={()=>setExp(x=>({...x,[p.id]:!x[p.id]}))}>
+              <div style={{width:10,height:10,borderRadius:99,background:st?st.c:"var(--ink5)",flexShrink:0}}/>
+              <div style={{flex:"2 1 200px",minWidth:0}}><div style={{fontSize:15,fontWeight:700,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{p.name||"Untitled"}</div><div style={{fontSize:12,color:"var(--ink3)",marginTop:1}}>{p.client||"No client"}</div></div>
+              <Badge c={st?st.c:"var(--ink3)"} bg={st?st.bg:"var(--ink7)"} bd={st?st.bd:"var(--ink6)"}>{p.status}</Badge>
+              <span style={{fontSize:11,fontWeight:700,padding:"3px 10px",borderRadius:99,background:"var(--ink7)",color:"var(--ink3)"}}>{p.billing}</span>
+              <div style={{textAlign:"right",minWidth:70}}><div style={{fontSize:18,fontWeight:800,color:"var(--green)"}}>{p.value?fmtM(p.value):""}</div></div>
+              <div style={{minWidth:80}}><div style={{fontSize:10,color:"var(--ink4)",marginBottom:2}}>Hrs: {p.hoursUsed||0}/{p.hoursEstimated||0}</div><div style={{width:80,height:5,background:"var(--ink7)",borderRadius:3,overflow:"hidden"}}><div style={{width:`${Math.min(hrPct,100)}%`,height:"100%",background:hrPct>90?"var(--red)":hrPct>70?"var(--amber)":"var(--green)",borderRadius:3}}/></div></div>
+              <span style={{color:"var(--ink5)",fontSize:10,transform:isE?"rotate(180deg)":"",transition:"transform .2s",display:"inline-block"}}>▼</span>
+            </div>
+            {isE&&<div style={{borderTop:"1px solid var(--ink7)",padding:20,background:"var(--surface2)"}}>
+              <ProjForm p={p}/>
+              <div style={{display:"flex",justifyContent:"flex-end"}}><button onClick={()=>dP(p.id)} style={{padding:"7px 18px",borderRadius:"var(--rs)",border:"1.5px solid var(--red-bd)",background:"var(--red-bg)",color:"var(--red)",fontSize:12,fontWeight:700,cursor:"pointer"}}>Delete</button></div>
+            </div>}
+          </div>})}
+        {fl.length===0&&<div style={{padding:40,textAlign:"center",color:"var(--ink4)"}}>{projects.length===0?"No projects yet":"No matches"}</div>}
+      </div>}
+
+      {/* BOARD VIEW */}
+      {view==="board"&&<div style={{display:"flex",gap:10,overflowX:"auto",paddingBottom:20}}>
+        {["Active","On Hold","Completed","Cancelled"].map(status=>{const s=getPS(status);const items=fl.filter(p=>p.status===status);const tot=items.reduce((a,p)=>a+(+p.value||0),0);const isOv=boardOver===status;
+          return<div key={status} onDragOver={e=>bDO(e,status)} onDragLeave={()=>setBoardOver(null)} onDrop={e=>bDr(e,status)} style={{minWidth:240,flex:"1 0 240px",background:"var(--surface)",borderRadius:"var(--r)",border:`1.5px solid ${isOv?"var(--accent)":"var(--ink6)"}`,overflow:"hidden",transition:"border-color .15s"}}>
+            <div style={{padding:"10px 14px",borderBottom:`2.5px solid ${s?s.bd:"var(--ink6)"}`,background:s?s.bg:"var(--surface2)"}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}><span style={{fontWeight:800,fontSize:13,color:s?s.c:"var(--ink3)"}}>{status}</span><span style={{background:"var(--navy)",color:"#fff",fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:99}}>{items.length}</span></div>
+              {tot>0&&<div style={{fontSize:11,color:"var(--ink3)",marginTop:3,fontWeight:600}}>{fmtM(tot)}</div>}
+            </div>
+            <div style={{padding:8,display:"flex",flexDirection:"column",gap:8,minHeight:80}}>
+              {items.map(p=>{const isDr=boardDrag===p.id;const hrPct=p.hoursEstimated?Math.round((p.hoursUsed/p.hoursEstimated)*100):0;
+                return<div key={p.id} draggable onDragStart={e=>bDS(e,p.id)} onDragEnd={()=>{setBoardDrag(null);setTimeout(()=>{didDrag.current=false},50)}} onClick={()=>bClick(p.id)} className={`board-card${isDr?" dragging":""}`} style={{background:"var(--surface2)",borderRadius:8,padding:"10px 12px",border:"1px solid var(--ink7)"}}>
+                  <div style={{fontWeight:700,fontSize:13,marginBottom:2}}>{p.name||"—"}</div>
+                  <div style={{fontSize:11,color:"var(--ink3)",marginBottom:6}}>{p.client||""}</div>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+                    <span style={{fontSize:14,fontWeight:800,color:"var(--green)"}}>{p.value?fmtM(p.value):""}</span>
+                    <span style={{fontSize:9,fontWeight:700,padding:"2px 7px",borderRadius:99,background:"var(--ink7)",color:"var(--ink3)"}}>{p.billing}</span>
+                  </div>
+                  {p.hoursEstimated>0&&<div><div style={{fontSize:10,color:"var(--ink4)",marginBottom:2}}>Hrs: {p.hoursUsed||0}/{p.hoursEstimated}</div><div style={{width:"100%",height:4,background:"var(--ink7)",borderRadius:2,overflow:"hidden"}}><div style={{width:`${Math.min(hrPct,100)}%`,height:"100%",background:hrPct>90?"var(--red)":hrPct>70?"var(--amber)":"var(--green)",borderRadius:2}}/></div></div>}
+                  {p.teamLead&&<div style={{fontSize:10,color:"var(--ink4)",marginTop:4}}>Lead: {p.teamLead}</div>}
+                </div>})}
+              {items.length===0&&<div style={{padding:16,textAlign:"center",color:"var(--ink5)",fontSize:11}}>Drop here</div>}
+            </div>
+          </div>})}
+      </div>}
+    </div>
+
+    {/* ── PROJECT MODAL (from board) ── */}
+    {modalId&&(()=>{const p=projects.find(x=>x.id===modalId);if(!p)return null;const st=getPS(p.status);
+      return<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.5)",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",padding:20,animation:"fadeIn .2s"}} onClick={e=>{if(e.target===e.currentTarget)setModalId(null)}}>
+        <div style={{background:"var(--surface)",borderRadius:14,width:"100%",maxWidth:760,maxHeight:"90vh",overflow:"auto",boxShadow:"0 24px 80px rgba(0,0,0,.3)"}}>
+          <div style={{padding:"18px 24px",borderBottom:"1px solid var(--ink6)",display:"flex",justifyContent:"space-between",alignItems:"center",position:"sticky",top:0,background:"var(--surface)",zIndex:1,borderRadius:"14px 14px 0 0"}}>
+            <div style={{display:"flex",alignItems:"center",gap:10}}>
+              <div style={{width:10,height:10,borderRadius:99,background:st?st.c:"var(--ink5)"}}/>
+              <span style={{fontSize:16,fontWeight:800}}>{p.name||"Untitled"}</span>
+              <Badge c={st?st.c:"var(--ink3)"} bg={st?st.bg:"var(--ink7)"} bd={st?st.bd:"var(--ink6)"}>{p.status}</Badge>
+            </div>
+            <button onClick={()=>setModalId(null)} style={{width:34,height:34,borderRadius:8,border:"none",background:"var(--ink7)",color:"var(--ink3)",fontSize:18,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
           </div>
-          {isE&&<div style={{borderTop:"1px solid var(--ink7)",padding:20,background:"var(--surface2)"}}>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:14,marginBottom:16}}>
-              <div><div style={FL}>Name</div><Inp value={p.name} onChange={v=>uP(p.id,"name",v)} ph="Project name..." bold/></div>
-              <div><div style={FL}>Client</div><Inp value={p.client} onChange={v=>uP(p.id,"client",v)} ph="Client..."/></div>
-              <div><div style={FL}>Billing</div><Sel value={p.billing} onChange={v=>uP(p.id,"billing",v)} options={BILL}/></div>
-              <div><div style={FL}>Status</div><Sel value={p.status} onChange={v=>uP(p.id,"status",v)} options={PROJ_ST} sty={PROJ_ST}/></div>
+          <div style={{padding:"20px 24px"}}>
+            <ProjForm p={p}/>
+            <div style={{display:"flex",justifyContent:"space-between",paddingTop:8,borderTop:"1px solid var(--ink7)"}}>
+              <button onClick={()=>{dP(p.id);setModalId(null)}} style={{padding:"7px 18px",borderRadius:"var(--rs)",border:"1.5px solid var(--red-bd)",background:"var(--red-bg)",color:"var(--red)",fontSize:12,fontWeight:700,cursor:"pointer"}}>Delete</button>
+              <button onClick={()=>setModalId(null)} style={btnP}>Done</button>
             </div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:14,marginBottom:16}}>
-              <div><div style={FL}>Value ($)</div><Inp value={p.value?String(p.value):""} onChange={v=>uP(p.id,"value",parseFloat(v.replace(/[^0-9.]/g,""))||0)} ph="0" mono/></div>
-              <div><div style={FL}>Hrs Est</div><Inp value={p.hoursEstimated?String(p.hoursEstimated):""} onChange={v=>uP(p.id,"hoursEstimated",parseFloat(v)||0)} ph="0" mono/></div>
-              <div><div style={FL}>Hrs Used</div><Inp value={p.hoursUsed?String(p.hoursUsed):""} onChange={v=>uP(p.id,"hoursUsed",parseFloat(v)||0)} ph="0" mono/></div>
-              <div><div style={FL}>Lead</div><TeamSel value={p.teamLead} onChange={v=>uP(p.id,"teamLead",v)} team={team} onAdd={onAdd}/></div>
-            </div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:14,marginBottom:16}}>
-              <div><div style={FL}>Start</div><DtInp value={p.startDate} onChange={v=>uP(p.id,"startDate",v)}/></div>
-              <div><div style={FL}>Due</div><DtInp value={p.dueDate} onChange={v=>uP(p.id,"dueDate",v)}/></div>
-              <div><div style={FL}>Trello</div><Inp value={p.trelloLink} onChange={v=>uP(p.id,"trelloLink",v)} ph="URL..."/></div>
-              <div><div style={FL}>Nifty</div><Inp value={p.niftyLink} onChange={v=>uP(p.id,"niftyLink",v)} ph="URL..."/></div>
-            </div>
-            <div style={{marginBottom:16}}><div style={FL}>Notes</div><textarea value={p.notes||""} onChange={e=>uP(p.id,"notes",e.target.value)} rows={2} style={{width:"100%",padding:"10px 12px",border:"1.5px solid var(--ink6)",borderRadius:"var(--rs)",fontSize:13,outline:"none",resize:"vertical",fontFamily:"inherit",background:"var(--surface)"}}/></div>
-            {/* ── Activity Log ── */}
-            <div style={{marginBottom:14}}>
-              <div onClick={()=>setActOpen(x=>({...x,[p.id]:!x[p.id]}))} style={{display:"flex",alignItems:"center",justifyContent:"space-between",cursor:"pointer",marginBottom:isActOpen?10:0}}>
-                <div style={{display:"flex",alignItems:"center",gap:6}}><span style={{fontSize:10,color:"var(--ink4)",transform:isActOpen?"rotate(90deg)":"",transition:"transform .2s",display:"inline-block"}}>▶</span><span style={{fontWeight:700,fontSize:13}}>Activity Log ({projActs.length}){linkedOps.length>0?` + ${linkedOps.length} ops tasks`:""}</span></div>
-                <button onClick={e=>{e.stopPropagation();addPA(p.id)}} style={{padding:"5px 12px",borderRadius:"var(--rs)",border:"1.5px solid var(--accent-border)",background:"var(--accent-light)",color:"var(--accent2)",fontSize:11,fontWeight:700,cursor:"pointer"}}>+ Log</button>
-              </div>
-              {isActOpen&&<div>
-                {/* Manual activities */}
-                {projActs.map(a=><div key={a.id} style={{display:"grid",gridTemplateColumns:"100px 140px 1fr 1fr 30px",gap:8,padding:"5px 0",borderBottom:"1px solid var(--ink7)",alignItems:"center"}}><DtInp value={a.date} onChange={v=>uPA(a.id,"date",v)}/><Sel value={a.type} onChange={v=>uPA(a.id,"type",v)} options={PROJ_ACT_TYPES} ph="Type..."/><Inp value={a.summary} onChange={v=>uPA(a.id,"summary",v)} ph="Summary..."/><Inp value={a.next} onChange={v=>uPA(a.id,"next",v)} ph="Next..."/><Del onClick={()=>dPA(a.id)}/></div>)}
-                {/* Linked ops tasks (read-only) */}
-                {linkedOps.length>0&&<div style={{marginTop:8}}><div style={{fontSize:10,fontWeight:700,color:"var(--ink4)",textTransform:"uppercase",marginBottom:6}}>Linked Ops Tasks</div>
-                  {linkedOps.map(t=><div key={t.id} style={{display:"grid",gridTemplateColumns:"80px 1fr 100px 80px",gap:8,padding:"5px 0",borderBottom:"1px solid var(--ink7)",fontSize:12,color:"var(--ink3)"}}>
-                    <span style={{fontWeight:600}}>{fmtD(t.dayDate)}</span><span>{t.desc1||t.project}</span><span>{t.member}</span><span style={{fontWeight:600}}>{t.status}</span>
-                  </div>)}
-                </div>}
-                {projActs.length===0&&linkedOps.length===0&&<div style={{padding:12,textAlign:"center",color:"var(--ink4)",fontSize:12,background:"var(--ink7)",borderRadius:"var(--rs)"}}>No activities yet</div>}
-              </div>}
-            </div>
-            <div style={{display:"flex",justifyContent:"flex-end"}}><button onClick={()=>dP(p.id)} style={{padding:"7px 18px",borderRadius:"var(--rs)",border:"1.5px solid var(--red-bd)",background:"var(--red-bg)",color:"var(--red)",fontSize:12,fontWeight:700,cursor:"pointer"}}>Delete</button></div>
-          </div>}
-        </div>})}
-      {fl.length===0&&<div style={{padding:40,textAlign:"center",color:"var(--ink4)"}}>{projects.length===0?"No projects yet":"No matches"}</div>}
-    </div>
+          </div>
+        </div>
+      </div>;
+    })()}
   </div>;
 }
 
