@@ -151,6 +151,57 @@ function NotifBell({leads,projects,acts,dismissed,setDismissed}){
 }
 
 /* ═══ PROJECTS TAB (with Activity Logs) ═══ */
+/* ═══ PROJECT DETAIL FORM (top-level to avoid focus loss) ═══ */
+function ProjForm({p,uP,team,onAdd,pActs,addPA,uPA,dPA,getLinkedOps,actOpen,setActOpen}){
+  const projActs=(pActs||[]).filter(a=>a.projectId===p.id).sort((a,b)=>(b.date||"").localeCompare(a.date||""));
+  const linkedOps=getLinkedOps(p.name);const isAO=actOpen[p.id];
+  return<div>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:14,marginBottom:16}}>
+      <div><div style={FL}>Name</div><Inp value={p.name} onChange={v=>uP(p.id,"name",v)} ph="Project name..." bold/></div>
+      <div><div style={FL}>Client</div><Inp value={p.client} onChange={v=>uP(p.id,"client",v)} ph="Client..."/></div>
+      <div><div style={FL}>Billing</div><Sel value={p.billing} onChange={v=>uP(p.id,"billing",v)} options={BILL}/></div>
+      <div><div style={FL}>Status</div><Sel value={p.status} onChange={v=>uP(p.id,"status",v)} options={PROJ_ST} sty={PROJ_ST}/></div>
+    </div>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:14,marginBottom:16}}>
+      <div><div style={FL}>Value ($)</div><Inp value={p.value?String(p.value):""} onChange={v=>uP(p.id,"value",parseFloat(v.replace(/[^0-9.]/g,""))||0)} ph="0" mono/></div>
+      <div><div style={FL}>Hrs Est</div><Inp value={p.hoursEstimated?String(p.hoursEstimated):""} onChange={v=>uP(p.id,"hoursEstimated",parseFloat(v)||0)} ph="0" mono/></div>
+      <div><div style={FL}>Hrs Used</div><Inp value={p.hoursUsed?String(p.hoursUsed):""} onChange={v=>uP(p.id,"hoursUsed",parseFloat(v)||0)} ph="0" mono/></div>
+      <div><div style={FL}>Lead</div><TeamSel value={p.teamLead} onChange={v=>uP(p.id,"teamLead",v)} team={team} onAdd={onAdd}/></div>
+    </div>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:14,marginBottom:16}}>
+      <div><div style={FL}>Start</div><DtInp value={p.startDate} onChange={v=>uP(p.id,"startDate",v)}/></div>
+      <div><div style={FL}>Due</div><DtInp value={p.dueDate} onChange={v=>uP(p.id,"dueDate",v)}/></div>
+      <div><div style={FL}>Trello</div><Inp value={p.trelloLink} onChange={v=>uP(p.id,"trelloLink",v)} ph="URL..."/></div>
+      <div><div style={FL}>Nifty</div><Inp value={p.niftyLink} onChange={v=>uP(p.id,"niftyLink",v)} ph="URL..."/></div>
+    </div>
+    <div style={{marginBottom:16}}><div style={FL}>Notes</div><textarea value={p.notes||""} onChange={e=>uP(p.id,"notes",e.target.value)} rows={2} style={{width:"100%",padding:"10px 12px",border:"1.5px solid var(--ink6)",borderRadius:"var(--rs)",fontSize:13,outline:"none",resize:"vertical",fontFamily:"inherit",background:"var(--surface)"}}/></div>
+    <div style={{marginBottom:14,background:"var(--surface)",borderRadius:"var(--rs)",border:"1px solid var(--ink6)",overflow:"hidden"}}>
+      <div style={{padding:"10px 14px",background:"var(--ink7)",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <div onClick={()=>setActOpen(x=>({...x,[p.id]:!x[p.id]}))} style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",flex:1}}>
+          <span style={{fontSize:10,color:"var(--ink4)",transform:isAO?"rotate(90deg)":"",transition:"transform .2s",display:"inline-block"}}>▶</span>
+          <span style={{fontWeight:700,fontSize:13}}>Activity Log ({projActs.length})</span>
+          {linkedOps.length>0&&<span style={{fontSize:11,color:"var(--ink4)"}}>+ {linkedOps.length} ops tasks</span>}
+        </div>
+        <button onClick={e=>{e.stopPropagation();addPA(p.id);setActOpen(x=>({...x,[p.id]:true}))}} style={{padding:"6px 16px",borderRadius:"var(--rs)",border:"none",background:"var(--accent)",color:"#fff",fontSize:12,fontWeight:700,cursor:"pointer"}}>+ Log Activity</button>
+      </div>
+      {isAO&&<div style={{padding:"10px 14px"}}>
+        {projActs.length>0&&<div style={{marginBottom:linkedOps.length?12:0}}>
+          <div style={{fontSize:10,fontWeight:700,color:"var(--ink4)",textTransform:"uppercase",marginBottom:6}}>Manual Logs</div>
+          {projActs.map(a=><div key={a.id} style={{display:"grid",gridTemplateColumns:"100px 140px 1fr 1fr 30px",gap:8,padding:"6px 0",borderBottom:"1px solid var(--ink7)",alignItems:"center"}}><DtInp value={a.date} onChange={v=>uPA(a.id,"date",v)}/><Sel value={a.type} onChange={v=>uPA(a.id,"type",v)} options={PROJ_ACT_TYPES} ph="Type..."/><Inp value={a.summary} onChange={v=>uPA(a.id,"summary",v)} ph="What was done..."/><Inp value={a.next} onChange={v=>uPA(a.id,"next",v)} ph="Next step..."/><Del onClick={()=>dPA(a.id)}/></div>)}
+        </div>}
+        {linkedOps.length>0&&<div>
+          <div style={{fontSize:10,fontWeight:700,color:"var(--ink4)",textTransform:"uppercase",marginBottom:6}}>Linked Ops Tasks</div>
+          {linkedOps.map(t=><div key={t.id} style={{display:"grid",gridTemplateColumns:"80px 1fr 100px 100px",gap:8,padding:"5px 0",borderBottom:"1px solid var(--ink7)",fontSize:12,color:"var(--ink3)"}}>
+            <span style={{fontWeight:600}}>{fmtD(t.dayDate)}</span><span>{t.desc1||t.project}</span><span>{t.member}</span><span style={{fontWeight:600}}>{t.status}</span>
+          </div>)}
+        </div>}
+        {projActs.length===0&&linkedOps.length===0&&<div style={{padding:16,textAlign:"center",color:"var(--ink4)",fontSize:12}}>No activities yet — click "+ Log Activity" above</div>}
+      </div>}
+    </div>
+  </div>;
+}
+
+/* ═══ PROJECTS TAB ═══ */
 function ProjectsTab({toast,team,onAdd,projects,setProjects,loaded,syncing,pActs,setPActs,days}){
   const[fS,setFS]=useState("");const[q,setQ]=useState("");const[exp,setExp]=useState({});const[actOpen,setActOpen]=useState({});
   const[view,setView]=useState("cards");const[modalId,setModalId]=useState(null);
@@ -172,60 +223,7 @@ function ProjectsTab({toast,team,onAdd,projects,setProjects,loaded,syncing,pActs
   const mF=p=>{if(fS&&p.status!==fS)return false;if(q){const s=q.toLowerCase();return[p.name,p.client,p.notes].some(x=>(x||"").toLowerCase().includes(s))}return true};
   const fl=projects.filter(mF);
 
-  /* Reusable project detail form */
-  const ProjForm=({p})=>{
-    const st=getPS(p.status);const hrPct=p.hoursEstimated?Math.round((p.hoursUsed/p.hoursEstimated)*100):0;
-    const projActs=(pActs||[]).filter(a=>a.projectId===p.id).sort((a,b)=>(b.date||"").localeCompare(a.date||""));
-    const linkedOps=getLinkedOps(p.name);const isAO=actOpen[p.id];
-    return<div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:14,marginBottom:16}}>
-        <div><div style={FL}>Name</div><Inp value={p.name} onChange={v=>uP(p.id,"name",v)} ph="Project name..." bold/></div>
-        <div><div style={FL}>Client</div><Inp value={p.client} onChange={v=>uP(p.id,"client",v)} ph="Client..."/></div>
-        <div><div style={FL}>Billing</div><Sel value={p.billing} onChange={v=>uP(p.id,"billing",v)} options={BILL}/></div>
-        <div><div style={FL}>Status</div><Sel value={p.status} onChange={v=>uP(p.id,"status",v)} options={PROJ_ST} sty={PROJ_ST}/></div>
-      </div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:14,marginBottom:16}}>
-        <div><div style={FL}>Value ($)</div><Inp value={p.value?String(p.value):""} onChange={v=>uP(p.id,"value",parseFloat(v.replace(/[^0-9.]/g,""))||0)} ph="0" mono/></div>
-        <div><div style={FL}>Hrs Est</div><Inp value={p.hoursEstimated?String(p.hoursEstimated):""} onChange={v=>uP(p.id,"hoursEstimated",parseFloat(v)||0)} ph="0" mono/></div>
-        <div><div style={FL}>Hrs Used</div><Inp value={p.hoursUsed?String(p.hoursUsed):""} onChange={v=>uP(p.id,"hoursUsed",parseFloat(v)||0)} ph="0" mono/></div>
-        <div><div style={FL}>Lead</div><TeamSel value={p.teamLead} onChange={v=>uP(p.id,"teamLead",v)} team={team} onAdd={onAdd}/></div>
-      </div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:14,marginBottom:16}}>
-        <div><div style={FL}>Start</div><DtInp value={p.startDate} onChange={v=>uP(p.id,"startDate",v)}/></div>
-        <div><div style={FL}>Due</div><DtInp value={p.dueDate} onChange={v=>uP(p.id,"dueDate",v)}/></div>
-        <div><div style={FL}>Trello</div><Inp value={p.trelloLink} onChange={v=>uP(p.id,"trelloLink",v)} ph="URL..."/></div>
-        <div><div style={FL}>Nifty</div><Inp value={p.niftyLink} onChange={v=>uP(p.id,"niftyLink",v)} ph="URL..."/></div>
-      </div>
-      <div style={{marginBottom:16}}><div style={FL}>Notes</div><textarea value={p.notes||""} onChange={e=>uP(p.id,"notes",e.target.value)} rows={2} style={{width:"100%",padding:"10px 12px",border:"1.5px solid var(--ink6)",borderRadius:"var(--rs)",fontSize:13,outline:"none",resize:"vertical",fontFamily:"inherit",background:"var(--surface)"}}/></div>
-      {/* ── Activity Log (improved layout) ── */}
-      <div style={{marginBottom:14,background:"var(--surface)",borderRadius:"var(--rs)",border:"1px solid var(--ink6)",overflow:"hidden"}}>
-        <div style={{padding:"10px 14px",background:"var(--ink7)",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-          <div onClick={()=>setActOpen(x=>({...x,[p.id]:!x[p.id]}))} style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",flex:1}}>
-            <span style={{fontSize:10,color:"var(--ink4)",transform:isAO?"rotate(90deg)":"",transition:"transform .2s",display:"inline-block"}}>▶</span>
-            <span style={{fontWeight:700,fontSize:13}}>Activity Log ({projActs.length})</span>
-            {linkedOps.length>0&&<span style={{fontSize:11,color:"var(--ink4)"}}>+ {linkedOps.length} ops tasks</span>}
-          </div>
-          <button onClick={e=>{e.stopPropagation();addPA(p.id);setActOpen(x=>({...x,[p.id]:true}))}} style={{padding:"6px 16px",borderRadius:"var(--rs)",border:"none",background:"var(--accent)",color:"#fff",fontSize:12,fontWeight:700,cursor:"pointer"}}>+ Log Activity</button>
-        </div>
-        {isAO&&<div style={{padding:"10px 14px"}}>
-          {/* Manual activities */}
-          {projActs.length>0&&<div style={{marginBottom:linkedOps.length?12:0}}>
-            <div style={{fontSize:10,fontWeight:700,color:"var(--ink4)",textTransform:"uppercase",marginBottom:6}}>Manual Logs</div>
-            {projActs.map(a=><div key={a.id} style={{display:"grid",gridTemplateColumns:"100px 140px 1fr 1fr 30px",gap:8,padding:"6px 0",borderBottom:"1px solid var(--ink7)",alignItems:"center"}}><DtInp value={a.date} onChange={v=>uPA(a.id,"date",v)}/><Sel value={a.type} onChange={v=>uPA(a.id,"type",v)} options={PROJ_ACT_TYPES} ph="Type..."/><Inp value={a.summary} onChange={v=>uPA(a.id,"summary",v)} ph="What was done..."/><Inp value={a.next} onChange={v=>uPA(a.id,"next",v)} ph="Next step..."/><Del onClick={()=>dPA(a.id)}/></div>)}
-          </div>}
-          {/* Linked ops tasks */}
-          {linkedOps.length>0&&<div>
-            <div style={{fontSize:10,fontWeight:700,color:"var(--ink4)",textTransform:"uppercase",marginBottom:6}}>Linked Ops Tasks</div>
-            {linkedOps.map(t=><div key={t.id} style={{display:"grid",gridTemplateColumns:"80px 1fr 100px 100px",gap:8,padding:"5px 0",borderBottom:"1px solid var(--ink7)",fontSize:12,color:"var(--ink3)"}}>
-              <span style={{fontWeight:600}}>{fmtD(t.dayDate)}</span><span>{t.desc1||t.project}</span><span>{t.member}</span><span style={{fontWeight:600}}>{t.status}</span>
-            </div>)}
-          </div>}
-          {projActs.length===0&&linkedOps.length===0&&<div style={{padding:16,textAlign:"center",color:"var(--ink4)",fontSize:12}}>No activities yet — click "+ Log Activity" above</div>}
-        </div>}
-      </div>
-    </div>;
-  };
-
+  /* ProjForm is defined at top level — see below ProjectsTab */
   return<div style={{animation:"fadeIn .3s"}}>
     <div style={{padding:"16px 20px",background:"var(--surface)",borderBottom:"1px solid var(--ink6)"}}>
       <div style={{display:"flex",gap:10,flexWrap:"wrap",marginBottom:14}}>
@@ -255,7 +253,7 @@ function ProjectsTab({toast,team,onAdd,projects,setProjects,loaded,syncing,pActs
               <span style={{color:"var(--ink5)",fontSize:10,transform:isE?"rotate(180deg)":"",transition:"transform .2s",display:"inline-block"}}>▼</span>
             </div>
             {isE&&<div style={{borderTop:"1px solid var(--ink7)",padding:20,background:"var(--surface2)"}}>
-              <ProjForm p={p}/>
+              <ProjForm p={p} uP={uP} team={team} onAdd={onAdd} pActs={pActs} addPA={addPA} uPA={uPA} dPA={dPA} getLinkedOps={getLinkedOps} actOpen={actOpen} setActOpen={setActOpen}/>
               <div style={{display:"flex",justifyContent:"flex-end"}}><button onClick={()=>dP(p.id)} style={{padding:"7px 18px",borderRadius:"var(--rs)",border:"1.5px solid var(--red-bd)",background:"var(--red-bg)",color:"var(--red)",fontSize:12,fontWeight:700,cursor:"pointer"}}>Delete</button></div>
             </div>}
           </div>})}
@@ -301,7 +299,7 @@ function ProjectsTab({toast,team,onAdd,projects,setProjects,loaded,syncing,pActs
             <button onClick={()=>setModalId(null)} style={{width:34,height:34,borderRadius:8,border:"none",background:"var(--ink7)",color:"var(--ink3)",fontSize:18,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
           </div>
           <div style={{padding:"20px 24px"}}>
-            <ProjForm p={p}/>
+            <ProjForm p={p} uP={uP} team={team} onAdd={onAdd} pActs={pActs} addPA={addPA} uPA={uPA} dPA={dPA} getLinkedOps={getLinkedOps} actOpen={actOpen} setActOpen={setActOpen}/>
             <div style={{display:"flex",justifyContent:"space-between",paddingTop:8,borderTop:"1px solid var(--ink7)"}}>
               <button onClick={()=>{dP(p.id);setModalId(null)}} style={{padding:"7px 18px",borderRadius:"var(--rs)",border:"1.5px solid var(--red-bd)",background:"var(--red-bg)",color:"var(--red)",fontSize:12,fontWeight:700,cursor:"pointer"}}>Delete</button>
               <button onClick={()=>setModalId(null)} style={btnP}>Done</button>
@@ -389,6 +387,39 @@ function DailyOps({toast,team,onAdd,days,setDays,loaded,syncing,projects}){
 }
 
 /* ═══ LEADS TAB ═══ */
+/* ═══ LEAD DETAIL FORM (top-level to avoid focus loss) ═══ */
+function LeadForm({l,uL,acts,aA,uA,dA}){
+  const aging=dBtw(l.firstContact,td());const since=dBtw(l.lastContact,td());const isOD=l.nextFollowup&&l.nextFollowup<td()&&!["Won","Dead"].includes(l.status);const isDT=l.nextFollowup===td();const lA=(acts||[]).filter(a=>a.leadId===l.id).sort((a,b)=>(b.date||"").localeCompare(a.date||""));
+  return<div>
+    {isOD&&<div style={{padding:"8px 14px",borderRadius:"var(--rs)",background:"var(--red-bg)",border:"1px solid var(--red-bd)",color:"var(--red)",fontSize:12,fontWeight:700,marginBottom:16}}>⚠ Follow-up overdue — {Math.abs(dBtw(l.nextFollowup,td()))}d</div>}
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:14,marginBottom:16}}>
+      <div><div style={FL}>Client</div><Inp value={l.client} onChange={v=>uL(l.id,"client",v)} ph="Username..." bold/></div>
+      <div><div style={FL}>Job</div><Inp value={l.job} onChange={v=>uL(l.id,"job",v)} ph="Title..."/></div>
+      <div><div style={FL}>Source</div><Sel value={l.source} onChange={v=>uL(l.id,"source",v)} options={SOURCES}/></div>
+      <div><div style={FL}>Type</div><Sel value={l.type} onChange={v=>uL(l.id,"type",v)} options={PTYPES}/></div>
+    </div>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:14,marginBottom:16}}>
+      <div><div style={FL}>Budget</div><Inp value={l.budget?String(l.budget):""} onChange={v=>uL(l.id,"budget",parseFloat(v.replace(/[^0-9.]/g,""))||0)} ph="0" mono/></div>
+      <div><div style={FL}>Status</div><Sel value={l.status} onChange={v=>uL(l.id,"status",v)} options={LEAD_ST} sty={LEAD_ST}/></div>
+      <div><div style={FL}>Priority</div><Sel value={l.priority} onChange={v=>uL(l.id,"priority",v)} options={PRIOS}/></div>
+      <div><div style={FL}>Lead Type</div><Sel value={l.leadType||"New Lead"} onChange={v=>uL(l.id,"leadType",v)} options={LEAD_TYPES}/></div>
+    </div>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:14,marginBottom:16}}>
+      <div><div style={FL}>First Contact</div><DtInp value={l.firstContact} onChange={v=>uL(l.id,"firstContact",v)}/></div>
+      <div><div style={FL}>Last Contact</div><DtInp value={l.lastContact} onChange={v=>uL(l.id,"lastContact",v)}/></div>
+      <div><div style={FL}>Next Follow-up</div><DtInp value={l.nextFollowup} onChange={v=>uL(l.id,"nextFollowup",v)} warn={isOD?"overdue":isDT?"today":""}/></div>
+      <div><div style={FL}>Proposal?</div><button onClick={()=>uL(l.id,"proposalSent",!l.proposalSent)} style={{width:"100%",padding:"8px",borderRadius:"var(--rs)",border:`1.5px solid ${l.proposalSent?"var(--green-bd)":"var(--ink6)"}`,background:l.proposalSent?"var(--green-bg)":"var(--surface)",color:l.proposalSent?"var(--green)":"var(--ink4)",fontSize:13,fontWeight:700,cursor:"pointer"}}>{l.proposalSent?"✓ Yes":"No"}</button></div>
+    </div>
+    <div style={{marginBottom:16}}><div style={FL}>Notes</div><textarea value={l.notes||""} onChange={e=>uL(l.id,"notes",e.target.value)} rows={2} style={{width:"100%",padding:"10px 12px",border:"1.5px solid var(--ink6)",borderRadius:"var(--rs)",fontSize:13,outline:"none",resize:"vertical",fontFamily:"inherit",background:"var(--surface2)"}}/></div>
+    <div style={{marginBottom:14}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}><span style={{fontWeight:700,fontSize:13}}>Activities ({lA.length})</span><button onClick={()=>aA(l.id)} style={{padding:"5px 12px",borderRadius:"var(--rs)",border:"1.5px solid var(--accent-border)",background:"var(--accent-light)",color:"var(--accent2)",fontSize:11,fontWeight:700,cursor:"pointer"}}>+ Log</button></div>
+      {lA.map(a=><div key={a.id} style={{display:"grid",gridTemplateColumns:"100px 140px 1fr 1fr 30px",gap:8,padding:"5px 0",borderBottom:"1px solid var(--ink7)",alignItems:"center"}}><DtInp value={a.date} onChange={v=>uA(a.id,"date",v)}/><Sel value={a.type} onChange={v=>uA(a.id,"type",v)} options={ACT_TYPES} ph="Type..."/><Inp value={a.summary} onChange={v=>uA(a.id,"summary",v)} ph="Summary..."/><Inp value={a.next} onChange={v=>uA(a.id,"next",v)} ph="Next..."/><Del onClick={()=>dA(a.id)}/></div>)}
+      {lA.length===0&&<div style={{padding:12,textAlign:"center",color:"var(--ink4)",fontSize:12,background:"var(--ink7)",borderRadius:"var(--rs)"}}>No activities</div>}
+    </div>
+  </div>;
+}
+
+/* ═══ LEADS TAB ═══ */
 function LeadsTab({toast,leads,setLeads,acts,setActs,loaded,syncing,actsSyncing,meta,setMeta,projects,setProjects}){
   const[view,setView]=useState("cards");const[fS,setFS]=useState("");const[fP,setFP]=useState("");const[fT,setFT]=useState("");const[q,setQ]=useState("");const[exp,setExp]=useState({});
   const[memoOpen,setMemoOpen]=useState(false);const[modalId,setModalId]=useState(null);
@@ -418,37 +449,7 @@ function LeadsTab({toast,leads,setLeads,acts,setActs,loaded,syncing,actsSyncing,
   const fl=leads.filter(mF);
   const m=meta||{};const uM=(f,v)=>setMeta(p=>({...(p||{}), [f]:v}));
 
-  /* Lead detail form (used in cards expand AND modal) */
-  const LeadForm=({l})=>{const aging=dBtw(l.firstContact,td());const since=dBtw(l.lastContact,td());const isOD=l.nextFollowup&&l.nextFollowup<td()&&!["Won","Dead"].includes(l.status);const isDT=l.nextFollowup===td();const lA=(acts||[]).filter(a=>a.leadId===l.id).sort((a,b)=>(b.date||"").localeCompare(a.date||""));
-    return<div>
-      {isOD&&<div style={{padding:"8px 14px",borderRadius:"var(--rs)",background:"var(--red-bg)",border:"1px solid var(--red-bd)",color:"var(--red)",fontSize:12,fontWeight:700,marginBottom:16}}>⚠ Follow-up overdue — {Math.abs(dBtw(l.nextFollowup,td()))}d</div>}
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:14,marginBottom:16}}>
-        <div><div style={FL}>Client</div><Inp value={l.client} onChange={v=>uL(l.id,"client",v)} ph="Username..." bold/></div>
-        <div><div style={FL}>Job</div><Inp value={l.job} onChange={v=>uL(l.id,"job",v)} ph="Title..."/></div>
-        <div><div style={FL}>Source</div><Sel value={l.source} onChange={v=>uL(l.id,"source",v)} options={SOURCES}/></div>
-        <div><div style={FL}>Type</div><Sel value={l.type} onChange={v=>uL(l.id,"type",v)} options={PTYPES}/></div>
-      </div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:14,marginBottom:16}}>
-        <div><div style={FL}>Budget</div><Inp value={l.budget?String(l.budget):""} onChange={v=>uL(l.id,"budget",parseFloat(v.replace(/[^0-9.]/g,""))||0)} ph="0" mono/></div>
-        <div><div style={FL}>Status</div><Sel value={l.status} onChange={v=>uL(l.id,"status",v)} options={LEAD_ST} sty={LEAD_ST}/></div>
-        <div><div style={FL}>Priority</div><Sel value={l.priority} onChange={v=>uL(l.id,"priority",v)} options={PRIOS}/></div>
-        <div><div style={FL}>Lead Type</div><Sel value={l.leadType||"New Lead"} onChange={v=>uL(l.id,"leadType",v)} options={LEAD_TYPES}/></div>
-      </div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:14,marginBottom:16}}>
-        <div><div style={FL}>First Contact</div><DtInp value={l.firstContact} onChange={v=>uL(l.id,"firstContact",v)}/></div>
-        <div><div style={FL}>Last Contact</div><DtInp value={l.lastContact} onChange={v=>uL(l.id,"lastContact",v)}/></div>
-        <div><div style={FL}>Next Follow-up</div><DtInp value={l.nextFollowup} onChange={v=>uL(l.id,"nextFollowup",v)} warn={isOD?"overdue":isDT?"today":""}/></div>
-        <div><div style={FL}>Proposal?</div><button onClick={()=>uL(l.id,"proposalSent",!l.proposalSent)} style={{width:"100%",padding:"8px",borderRadius:"var(--rs)",border:`1.5px solid ${l.proposalSent?"var(--green-bd)":"var(--ink6)"}`,background:l.proposalSent?"var(--green-bg)":"var(--surface)",color:l.proposalSent?"var(--green)":"var(--ink4)",fontSize:13,fontWeight:700,cursor:"pointer"}}>{l.proposalSent?"✓ Yes":"No"}</button></div>
-      </div>
-      <div style={{marginBottom:16}}><div style={FL}>Notes</div><textarea value={l.notes||""} onChange={e=>uL(l.id,"notes",e.target.value)} rows={2} style={{width:"100%",padding:"10px 12px",border:"1.5px solid var(--ink6)",borderRadius:"var(--rs)",fontSize:13,outline:"none",resize:"vertical",fontFamily:"inherit",background:"var(--surface2)"}}/></div>
-      <div style={{marginBottom:14}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}><span style={{fontWeight:700,fontSize:13}}>Activities ({lA.length})</span><button onClick={()=>aA(l.id)} style={{padding:"5px 12px",borderRadius:"var(--rs)",border:"1.5px solid var(--accent-border)",background:"var(--accent-light)",color:"var(--accent2)",fontSize:11,fontWeight:700,cursor:"pointer"}}>+ Log</button></div>
-        {lA.map(a=><div key={a.id} style={{display:"grid",gridTemplateColumns:"100px 140px 1fr 1fr 30px",gap:8,padding:"5px 0",borderBottom:"1px solid var(--ink7)",alignItems:"center"}}><DtInp value={a.date} onChange={v=>uA(a.id,"date",v)}/><Sel value={a.type} onChange={v=>uA(a.id,"type",v)} options={ACT_TYPES} ph="Type..."/><Inp value={a.summary} onChange={v=>uA(a.id,"summary",v)} ph="Summary..."/><Inp value={a.next} onChange={v=>uA(a.id,"next",v)} ph="Next..."/><Del onClick={()=>dA(a.id)}/></div>)}
-        {lA.length===0&&<div style={{padding:12,textAlign:"center",color:"var(--ink4)",fontSize:12,background:"var(--ink7)",borderRadius:"var(--rs)"}}>No activities</div>}
-      </div>
-    </div>;
-  };
-
+  /* LeadForm is defined at top level — see above */
   return<div style={{animation:"fadeIn .3s"}}>
     {/* Date & Memo */}
     <div style={{padding:"16px 20px 0",background:"var(--surface)"}}>
@@ -488,7 +489,7 @@ function LeadsTab({toast,leads,setLeads,acts,setActs,loaded,syncing,actsSyncing,
             </div>
             {isOD&&!isE&&<div style={{padding:"5px 20px",background:"var(--red-bg)",fontSize:11,fontWeight:700,color:"var(--red)"}}>⚠ Follow-up overdue</div>}
             {isE&&<div style={{borderTop:"1px solid var(--ink7)",padding:20,background:"var(--surface2)"}}>
-              <LeadForm l={l}/>
+              <LeadForm l={l} uL={uL} acts={acts} aA={aA} uA={uA} dA={dA}/>
               <div style={{display:"flex",justifyContent:"flex-end"}}><button onClick={()=>dL(l.id)} style={{padding:"6px 16px",borderRadius:"var(--rs)",border:"1.5px solid var(--red-bd)",background:"var(--red-bg)",color:"var(--red)",fontSize:12,fontWeight:700,cursor:"pointer"}}>Delete</button></div>
             </div>}
           </div>})}
@@ -527,7 +528,7 @@ function LeadsTab({toast,leads,setLeads,acts,setActs,loaded,syncing,actsSyncing,
             <div style={{display:"flex",alignItems:"center",gap:10}}><div style={{width:10,height:10,borderRadius:99,background:st?st.c:"var(--ink5)"}}/><span style={{fontSize:12,fontWeight:700,color:"var(--ink4)",fontFamily:"monospace"}}>{l.id}</span><span style={{fontSize:16,fontWeight:800}}>{l.client||"Untitled"}</span><Badge c={st?st.c:"var(--ink3)"} bg={st?st.bg:"var(--ink7)"} bd={st?st.bd:"var(--ink6)"}>{l.status}</Badge></div>
             <button onClick={()=>setModalId(null)} style={{width:34,height:34,borderRadius:8,border:"none",background:"var(--ink7)",color:"var(--ink3)",fontSize:18,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
           </div>
-          <div style={{padding:"20px 24px"}}><LeadForm l={l}/>
+          <div style={{padding:"20px 24px"}}><LeadForm l={l} uL={uL} acts={acts} aA={aA} uA={uA} dA={dA}/>
             <div style={{display:"flex",justifyContent:"space-between",paddingTop:8,borderTop:"1px solid var(--ink7)"}}><button onClick={()=>{dL(l.id);setModalId(null)}} style={{padding:"7px 18px",borderRadius:"var(--rs)",border:"1.5px solid var(--red-bd)",background:"var(--red-bg)",color:"var(--red)",fontSize:12,fontWeight:700,cursor:"pointer"}}>Delete</button><button onClick={()=>setModalId(null)} style={btnP}>Done</button></div>
           </div>
         </div>
