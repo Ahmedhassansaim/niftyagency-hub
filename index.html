@@ -445,7 +445,7 @@ function LeadsTab({toast,leads,setLeads,acts,setActs,loaded,syncing,actsSyncing,
   const fl=leads.filter(mF);
   const active=fl.filter(l=>!["Won","Dead"].includes(l.status));
   const pipeline=active.reduce((s,l)=>s+(+l.budget||0),0);
-  const weighted=fl.reduce((s,l)=>{const x=getLS(l.status);return s+(+l.budget||0)*(x?x.p/100:0)},0);
+  const weighted=active.reduce((s,l)=>{const x=getLS(l.status);return s+(+l.budget||0)*(x?x.p/100:0)},0);
   const overdue=fl.filter(l=>l.nextFollowup&&l.nextFollowup<td()&&!["Won","Dead"].includes(l.status));
   const m=meta||{};const uM=(f,v)=>setMeta(p=>({...(p||{}), [f]:v}));
 
