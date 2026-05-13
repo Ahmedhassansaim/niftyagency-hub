@@ -219,15 +219,15 @@ function ProjectsTab({toast,team,onAdd,projects,setProjects,loaded,syncing,pActs
   const bDO=(e,s)=>{e.preventDefault();setBoardOver(s)};
   const bDr=(e,s)=>{e.preventDefault();setBoardOver(null);if(!boardDrag)return;uP(boardDrag,"status",s);setBoardDrag(null);toast(`Moved to ${s}`)};
   const bClick=id=>{if(didDrag.current){didDrag.current=false;return}setModalId(id)};
-  const active=projects.filter(p=>p.status==="Active");const totalVal=active.reduce((s,p)=>s+(+p.value||0),0);const totalHrs=projects.reduce((s,p)=>s+(+p.hoursUsed||0),0);
   const mF=p=>{if(fS&&p.status!==fS)return false;if(q){const s=q.toLowerCase();return[p.name,p.client,p.notes].some(x=>(x||"").toLowerCase().includes(s))}return true};
   const fl=projects.filter(mF);
+  const active=fl.filter(p=>p.status==="Active");const totalVal=active.reduce((s,p)=>s+(+p.value||0),0);const totalHrs=fl.reduce((s,p)=>s+(+p.hoursUsed||0),0);
 
   /* ProjForm is defined at top level — see below ProjectsTab */
   return<div style={{animation:"fadeIn .3s"}}>
     <div style={{padding:"16px 20px",background:"var(--surface)",borderBottom:"1px solid var(--ink6)"}}>
       <div style={{display:"flex",gap:10,flexWrap:"wrap",marginBottom:14}}>
-        <KPI label="Active" val={active.length} c="var(--green)" bg="var(--green-bg)" icon="📂"/><KPI label="Total" val={projects.length} c="var(--accent2)" bg="var(--accent-light)"/><KPI label="Value" val={fmtM(totalVal)} c="var(--green)" bg="var(--green-bg)"/><KPI label="Hours" val={totalHrs} c="var(--cyan)" bg="var(--cyan-bg)" icon="⏱"/><KPI label="Done" val={projects.filter(p=>p.status==="Completed").length} c="var(--accent2)" bg="var(--accent-light)" icon="✓"/>
+        <KPI label="Active" val={active.length} c="var(--green)" bg="var(--green-bg)" icon="📂"/><KPI label="Total" val={fl.length} c="var(--accent2)" bg="var(--accent-light)"/><KPI label="Value" val={fmtM(totalVal)} c="var(--green)" bg="var(--green-bg)"/><KPI label="Hours" val={totalHrs} c="var(--cyan)" bg="var(--cyan-bg)" icon="⏱"/><KPI label="Done" val={fl.filter(p=>p.status==="Completed").length} c="var(--accent2)" bg="var(--accent-light)" icon="✓"/>
       </div>
       <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
         <div style={{display:"flex",background:"var(--surface3)",borderRadius:8,padding:3,gap:2}}>
@@ -441,12 +441,12 @@ function LeadsTab({toast,leads,setLeads,acts,setActs,loaded,syncing,actsSyncing,
   const bDO=(e,s)=>{e.preventDefault();setBoardOver(s)};
   const bDr=(e,s)=>{e.preventDefault();setBoardOver(null);if(!boardDrag)return;uL(boardDrag,"status",s);setBoardDrag(null);toast(`Moved to ${s}`)};
   const bClick=id=>{if(didDrag.current){didDrag.current=false;return}setModalId(id)};
-  const active=leads.filter(l=>!["Won","Dead"].includes(l.status));
-  const pipeline=active.reduce((s,l)=>s+(+l.budget||0),0);
-  const weighted=leads.reduce((s,l)=>{const x=getLS(l.status);return s+(+l.budget||0)*(x?x.p/100:0)},0);
-  const overdue=leads.filter(l=>l.nextFollowup&&l.nextFollowup<td()&&!["Won","Dead"].includes(l.status));
   const mF=l=>{if(fS&&l.status!==fS)return false;if(fP&&l.priority!==fP)return false;if(fT&&(l.leadType||"New Lead")!==fT)return false;if(q){const s=q.toLowerCase();return[l.client,l.job,l.notes,l.id].some(x=>(x||"").toLowerCase().includes(s))}return true};
   const fl=leads.filter(mF);
+  const active=fl.filter(l=>!["Won","Dead"].includes(l.status));
+  const pipeline=active.reduce((s,l)=>s+(+l.budget||0),0);
+  const weighted=fl.reduce((s,l)=>{const x=getLS(l.status);return s+(+l.budget||0)*(x?x.p/100:0)},0);
+  const overdue=fl.filter(l=>l.nextFollowup&&l.nextFollowup<td()&&!["Won","Dead"].includes(l.status));
   const m=meta||{};const uM=(f,v)=>setMeta(p=>({...(p||{}), [f]:v}));
 
   /* LeadForm is defined at top level — see above */
@@ -459,7 +459,7 @@ function LeadsTab({toast,leads,setLeads,acts,setActs,loaded,syncing,actsSyncing,
     {/* KPIs & Toolbar */}
     <div style={{padding:"0 20px 16px",background:"var(--surface)",borderBottom:"1px solid var(--ink6)"}}>
       <div style={{display:"flex",gap:10,flexWrap:"wrap",marginBottom:14}}>
-        <KPI label="Active" val={active.length} c="var(--accent2)" bg="var(--accent-light)"/><KPI label="Hot" val={leads.filter(l=>l.status==="Hot").length} c="var(--red)" bg="var(--red-bg)" icon="🔥"/><KPI label="Pipeline" val={fmtM(pipeline)} c="var(--green)" bg="var(--green-bg)"/><KPI label="Weighted" val={fmtM(Math.round(weighted))} c="var(--cyan)" bg="var(--cyan-bg)"/><KPI label="Won" val={leads.filter(l=>l.status==="Won").length} c="var(--green)" bg="var(--green-bg)" icon="🏆"/><KPI label="Overdue" val={overdue.length} c={overdue.length?"var(--red)":"var(--green)"} bg={overdue.length?"var(--red-bg)":"var(--green-bg)"} icon={overdue.length?"⚠":"✓"}/>
+        <KPI label="Active" val={active.length} c="var(--accent2)" bg="var(--accent-light)"/><KPI label="Hot" val={fl.filter(l=>l.status==="Hot").length} c="var(--red)" bg="var(--red-bg)" icon="🔥"/><KPI label="Pipeline" val={fmtM(pipeline)} c="var(--green)" bg="var(--green-bg)"/><KPI label="Weighted" val={fmtM(Math.round(weighted))} c="var(--cyan)" bg="var(--cyan-bg)"/><KPI label="Won" val={fl.filter(l=>l.status==="Won").length} c="var(--green)" bg="var(--green-bg)" icon="🏆"/><KPI label="Overdue" val={overdue.length} c={overdue.length?"var(--red)":"var(--green)"} bg={overdue.length?"var(--red-bg)":"var(--green-bg)"} icon={overdue.length?"⚠":"✓"}/>
       </div>
       <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
         <div style={{display:"flex",background:"var(--surface3)",borderRadius:8,padding:3,gap:2}}>{[["cards","📋 Cards"],["board","◫ Board"],["activity","📝 Activity"]].map(([k,l])=><button key={k} onClick={()=>setView(k)} style={{padding:"7px 14px",borderRadius:6,border:"none",fontSize:12,fontWeight:600,cursor:"pointer",background:view===k?"var(--surface)":"transparent",color:view===k?"var(--ink)":"var(--ink3)",boxShadow:view===k?"0 1px 3px rgba(0,0,0,.06)":"none"}}>{l}</button>)}</div>
