@@ -221,7 +221,7 @@ function ProjectsTab({toast,team,onAdd,projects,setProjects,loaded,syncing,pActs
   const bClick=id=>{if(didDrag.current){didDrag.current=false;return}setModalId(id)};
   const mF=p=>{if(fS&&p.status!==fS)return false;if(q){const s=q.toLowerCase();return[p.name,p.client,p.notes].some(x=>(x||"").toLowerCase().includes(s))}return true};
   const fl=projects.filter(mF);
-  const active=fl.filter(p=>p.status==="Active");const totalVal=active.reduce((s,p)=>s+(+p.value||0),0);const totalHrs=fl.reduce((s,p)=>s+(+p.hoursUsed||0),0);
+  const active=fl.filter(p=>p.status==="Active");const totalVal=fl.reduce((s,p)=>s+(+p.value||0),0);const totalHrs=fl.reduce((s,p)=>s+(+p.hoursUsed||0),0);
 
   /* ProjForm is defined at top level — see below ProjectsTab */
   return<div style={{animation:"fadeIn .3s"}}>
