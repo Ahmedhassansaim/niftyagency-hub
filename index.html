@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>NiftyCode — Agency Hub</title>
+<title>NiftyCode  -  Agency Hub</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%230f172a'/><text x='16' y='22' text-anchor='middle' font-size='18' fill='%2360a5fa'>N</text></svg>"/>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
@@ -85,16 +85,18 @@ const ACT_TYPES=["Proposal Sent","Client Replied","Follow-up Sent","Call Schedul
 const PROJ_ACT_TYPES=["Development","Design","Meeting","Deployment","Bug Fix","Review","Communication","Milestone Delivered","Note"];
 const LEAD_TYPES=["New Lead","Existing Client"];
 let _c=Date.now();const uid=()=>`_${_c++}`;
-const PKT={tz:"Asia/Karachi"};
-const td=()=>new Date().toLocaleDateString("en-CA",{timeZone:PKT.tz});
-const nowPKT=()=>{const o={timeZone:PKT.tz,year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hour12:false};const p=new Intl.DateTimeFormat("en-CA",o).formatToParts(new Date());const g=t=>p.find(x=>x.type===t).value;return `${g("year")}-${g("month")}-${g("day")}T${g("hour")}:${g("minute")}`};
-const fullNowPKT=()=>{const o={timeZone:PKT.tz,year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false};const p=new Intl.DateTimeFormat("en-CA",o).formatToParts(new Date());const g=t=>p.find(x=>x.type===t).value;return `${g("year")}-${g("month")}-${g("day")}T${g("hour")}:${g("minute")}:${g("second")}`};
+const PKT={tz:"Asia/Karachi",off:5};
+const pad=n=>n<10?"0"+n:String(n);
+const pktNow=()=>{const d=new Date(Date.now()+PKT.off*36e5);return d};
+const td=()=>{const d=pktNow();return d.getUTCFullYear()+"-"+pad(d.getUTCMonth()+1)+"-"+pad(d.getUTCDate())};
+const nowPKT=()=>{const d=pktNow();return td()+"T"+pad(d.getUTCHours())+":"+pad(d.getUTCMinutes())};
+const fullNowPKT=()=>{const d=pktNow();return nowPKT()+":"+pad(d.getUTCSeconds())};
 const dBtw=(a,b)=>{if(!a||!b)return 0;return Math.floor((new Date(b)-new Date(a))/864e5)};
-const fmtD=d=>{if(!d)return"—";try{return new Date(d+"T00:00:00").toLocaleDateString("en-US",{month:"short",day:"numeric"})}catch(e){return d}};
-const fmtDT=d=>{if(!d)return"—";try{const dt=new Date(d);if(isNaN(dt))return d.slice(0,10);return dt.toLocaleString("en-US",{month:"short",day:"numeric",hour:"numeric",minute:"2-digit",hour12:true,timeZone:PKT.tz})}catch(e){return d}};
+const fmtD=d=>{if(!d)return" - ";try{return new Date(d+"T00:00:00").toLocaleDateString("en-US",{month:"short",day:"numeric"})}catch(e){return d}};
+const fmtDT=d=>{if(!d)return" - ";try{var dt=new Date(d);if(isNaN(dt.getTime()))return String(d).slice(0,10);var mo=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];var h=dt.getHours();var ampm=h>=12?"PM":"AM";h=h%12||12;return mo[dt.getMonth()]+" "+dt.getDate()+", "+h+":"+pad(dt.getMinutes())+" "+ampm}catch(e){return String(d)}};
 const isOverdueNow=eta=>{if(!eta)return false;try{const now=nowPKT();return eta<now}catch(e){return false}};
 const isDueToday=eta=>{if(!eta)return false;return eta.slice(0,10)===td()};
-const fmtM=n=>n?`$${Number(n).toLocaleString()}`:"—";
+const fmtM=n=>n?`$${Number(n).toLocaleString()}`:" - ";
 const bTask=()=>({id:uid(),project:"",linkedProject:"",member:"",desc1:"",desc2:"",status:"To Do",time:"",eta:"",createdAt:fullNowPKT()});
 const bProj=()=>({id:uid(),name:"",client:"",billing:"Hourly",value:0,hoursEstimated:0,hoursUsed:0,status:"Active",startDate:td(),dueDate:"",teamLead:"",trelloLink:"",niftyLink:"",notes:""});
 const D_OPS=[{id:"d1",day:"Thursday",date:"2026-04-16",tasks:[{id:"t1",project:"Amro Al Hasan",member:"Hafiz Abdul Manan",desc1:"External lift logic",desc2:"",status:"In Progress",time:"",linkedProject:"",eta:"",createdAt:"2026-04-16T09:00:00"}]}];
@@ -111,7 +113,7 @@ const DtInp=({value,onChange,warn})=><input type="date" value={value||""} onChan
 const Del=({onClick})=><button onClick={onClick} style={{width:30,height:30,display:"flex",alignItems:"center",justifyContent:"center",borderRadius:"var(--rs)",border:"none",background:"transparent",color:"var(--ink5)",fontSize:14,cursor:"pointer",flexShrink:0}} onMouseEnter={e=>{e.currentTarget.style.background="var(--red-bg)";e.currentTarget.style.color="var(--red)"}} onMouseLeave={e=>{e.currentTarget.style.background="transparent";e.currentTarget.style.color="var(--ink5)"}}>✕</button>;
 const FL={fontSize:10,fontWeight:700,color:"var(--ink4)",textTransform:"uppercase",letterSpacing:".06em",marginBottom:5};
 const TeamSel=({value,onChange,team,onAdd})=>{const hc=e=>{if(e.target.value==="__add__"){const n=prompt("Enter new team member:");if(n&&n.trim()){onAdd(n.trim());onChange(n.trim())}}else onChange(e.target.value)};return<select value={value||""} onChange={hc} style={{width:"100%",padding:"8px 10px",border:"1.5px solid var(--ink6)",borderRadius:"var(--rs)",fontSize:12,fontWeight:value?600:400,outline:"none",cursor:"pointer",background:"var(--surface)",color:value?"var(--ink)":"var(--ink4)"}}><option value="">Assign...</option>{team.map(m=><option key={m}>{m}</option>)}<option value="__add__" style={{fontWeight:700,color:"#2563eb"}}>+ Add new...</option></select>};
-const ProjSel=({value,onChange,projects,id})=>{const dlId=`pl-${id||'def'}`;return<div style={{position:"relative"}}><input list={dlId} value={value||""} onChange={e=>onChange(e.target.value)} placeholder="Search & link project..." style={{width:"100%",padding:"8px 10px",border:"1.5px solid var(--ink6)",borderRadius:"var(--rs)",fontSize:12,fontWeight:value?600:400,outline:"none",background:"var(--surface)",color:value?"var(--ink)":"var(--ink4)"}} onFocus={e=>e.target.style.borderColor="var(--accent)"} onBlur={e=>e.target.style.borderColor="var(--ink6)"}/><datalist id={dlId}>{projects.map(p=><option key={p.id} value={p.name}>{p.name} — {p.client||"?"}</option>)}</datalist></div>};
+const ProjSel=({value,onChange,projects,id})=>{const dlId=`pl-${id||'def'}`;return<div style={{position:"relative"}}><input list={dlId} value={value||""} onChange={e=>onChange(e.target.value)} placeholder="Search & link project..." style={{width:"100%",padding:"8px 10px",border:"1.5px solid var(--ink6)",borderRadius:"var(--rs)",fontSize:12,fontWeight:value?600:400,outline:"none",background:"var(--surface)",color:value?"var(--ink)":"var(--ink4)"}} onFocus={e=>e.target.style.borderColor="var(--accent)"} onBlur={e=>e.target.style.borderColor="var(--ink6)"}/><datalist id={dlId}>{projects.map(p=><option key={p.id} value={p.name}>{p.name}  -  {p.client||"?"}</option>)}</datalist></div>};
 const Sync=({s})=><span style={{display:"inline-flex",alignItems:"center",fontSize:10,color:"var(--ink4)",gap:4}}><span style={{width:8,height:8,borderRadius:99,background:s?"var(--amber)":"var(--green)",display:"inline-block"}}/>{s?"Saving...":"Synced"}</span>;
 const ETAInp=({value,onChange})=>{const od=isOverdueNow(value);const dt=isDueToday(value);return<input type="datetime-local" value={value||""} onChange={e=>onChange(e.target.value)} style={{padding:"6px 6px",border:`1.5px solid ${od?"var(--red-bd)":dt?"var(--orange-bd)":"var(--ink6)"}`,borderRadius:"var(--rs)",fontSize:11,outline:"none",background:od?"var(--red-bg)":dt?"var(--orange-bg)":"var(--surface)",width:"100%",fontFamily:"inherit",color:od?"var(--red)":dt?"var(--orange)":"var(--ink)"}}/>};
 
@@ -203,7 +205,7 @@ function ProjForm({p,uP,team,onAdd,pActs,addPA,uPA,dPA,getLinkedOps,actOpen,setA
             <span style={{fontWeight:600}}>{fmtD(t.dayDate)}</span><span>{t.desc1||t.project}</span><span>{t.member}</span><span style={{fontWeight:600}}>{t.status}</span>
           </div>)}
         </div>}
-        {projActs.length===0&&linkedOps.length===0&&<div style={{padding:16,textAlign:"center",color:"var(--ink4)",fontSize:12}}>No activities yet — click "+ Log Activity" above</div>}
+        {projActs.length===0&&linkedOps.length===0&&<div style={{padding:16,textAlign:"center",color:"var(--ink4)",fontSize:12}}>No activities yet  -  click "+ Log Activity" above</div>}
       </div>}
     </div>
   </div>;
@@ -231,7 +233,7 @@ function ProjectsTab({toast,team,onAdd,projects,setProjects,loaded,syncing,pActs
   const fl=projects.filter(mF);
   const active=fl.filter(p=>p.status==="Active");const totalVal=fl.reduce((s,p)=>s+(+p.value||0),0);const totalHrs=fl.reduce((s,p)=>s+(+p.hoursUsed||0),0);
 
-  /* ProjForm is defined at top level — see below ProjectsTab */
+  /* ProjForm is defined at top level  -  see below ProjectsTab */
   return<div style={{animation:"fadeIn .3s"}}>
     <div style={{padding:"16px 20px",background:"var(--surface)",borderBottom:"1px solid var(--ink6)"}}>
       <div style={{display:"flex",gap:10,flexWrap:"wrap",marginBottom:14}}>
@@ -279,7 +281,7 @@ function ProjectsTab({toast,team,onAdd,projects,setProjects,loaded,syncing,pActs
             <div style={{padding:8,display:"flex",flexDirection:"column",gap:8,minHeight:80}}>
               {items.map(p=>{const isDr=boardDrag===p.id;const hrPct=p.hoursEstimated?Math.round((p.hoursUsed/p.hoursEstimated)*100):0;
                 return<div key={p.id} draggable onDragStart={e=>bDS(e,p.id)} onDragEnd={()=>{setBoardDrag(null);setTimeout(()=>{didDrag.current=false},50)}} onClick={()=>bClick(p.id)} className={`board-card${isDr?" dragging":""}`} style={{background:"var(--surface2)",borderRadius:8,padding:"10px 12px",border:"1px solid var(--ink7)"}}>
-                  <div style={{fontWeight:700,fontSize:13,marginBottom:2}}>{p.name||"—"}</div>
+                  <div style={{fontWeight:700,fontSize:13,marginBottom:2}}>{p.name||" - "}</div>
                   <div style={{fontSize:11,color:"var(--ink3)",marginBottom:6}}>{p.client||""}</div>
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
                     <span style={{fontSize:14,fontWeight:800,color:"var(--green)"}}>{p.value?fmtM(p.value):""}</span>
@@ -320,7 +322,7 @@ function ProjectsTab({toast,team,onAdd,projects,setProjects,loaded,syncing,pActs
 }
 
 /* ═══ DAILY OPS ═══ */
-/* Tooltip input — shows full text on hover */
+/* Tooltip input  -  shows full text on hover */
 const TipInp=({value,onChange,ph,bold,wide})=><div title={value||""} style={{position:"relative"}}><input value={value||""} onChange={e=>onChange(e.target.value)} placeholder={ph} style={{width:"100%",padding:"8px 10px",border:"1.5px solid var(--ink6)",borderRadius:"var(--rs)",fontSize:13,outline:"none",background:"var(--surface)",fontWeight:bold?600:400,color:"var(--ink)"}} onFocus={e=>e.target.style.borderColor="var(--accent)"} onBlur={e=>e.target.style.borderColor="var(--ink6)"}/></div>;
 
 function DailyOps({toast,team,onAdd,days,setDays,loaded,syncing,projects}){
@@ -401,7 +403,7 @@ function DailyOps({toast,team,onAdd,days,setDays,loaded,syncing,projects}){
             <TipInp value={t.desc2} onChange={v=>uTask(day.id,t.id,"desc2",v)} ph="Notes..."/>
             <Sel value={t.status} onChange={v=>uTask(day.id,t.id,"status",v)} options={OPS_ST} ph="Status..." sty={OPS_ST}/>
             <ETAInp value={t.eta} onChange={v=>uTask(day.id,t.id,"eta",v)}/>
-            <span style={{fontSize:9,color:"var(--ink4)",padding:"0 2px",lineHeight:1.3}} title={t.createdAt||""}>{t.createdAt?fmtDT(t.createdAt):"—"}</span>
+            <span style={{fontSize:9,color:"var(--ink4)",padding:"0 2px",lineHeight:1.3}} title={t.createdAt||""}>{t.createdAt?fmtDT(t.createdAt):" - "}</span>
             <Inp value={t.time} onChange={v=>uTask(day.id,t.id,"time",v)} ph="0" small mono/>
             <Del onClick={()=>dTask(day.id,t.id)}/>
           </div></React.Fragment>})}
@@ -423,7 +425,7 @@ function DailyOps({toast,team,onAdd,days,setDays,loaded,syncing,projects}){
       <div style={{marginBottom:14,display:"flex",alignItems:"center",gap:10}}>
         <span style={{fontSize:12,fontWeight:700,color:"var(--ink2)"}}>Showing:</span>
         <select value={selDay.id} onChange={e=>setBoardDay(e.target.value)} style={{...fltSel,fontWeight:700,fontSize:13}}>
-          {days.map(d=><option key={d.id} value={d.id}>{d.day} — {fmtD(d.date)} ({d.tasks.length} tasks)</option>)}
+          {days.map(d=><option key={d.id} value={d.id}>{d.day}  -  {fmtD(d.date)} ({d.tasks.length} tasks)</option>)}
         </select>
       </div>
       <div style={{display:"flex",gap:10,overflowX:"auto",paddingBottom:20}}>
@@ -438,7 +440,7 @@ function DailyOps({toast,team,onAdd,days,setDays,loaded,syncing,projects}){
                 {proj!=="Unlinked"&&<div style={{fontSize:9,fontWeight:700,color:"var(--accent2)",padding:"4px 6px 2px",textTransform:"uppercase"}}>📂 {proj}</div>}
                 {tasks.map(t=>{const etaOD=isOverdueNow(t.eta)&&t.status!=="Completed";
                   return<div key={t.id} title={`${t.desc1||""}\n${t.desc2||""}`} style={{background:etaOD?"var(--red-bg)":"var(--surface2)",borderRadius:6,padding:"8px 10px",border:`1px solid ${etaOD?"var(--red-bd)":"var(--ink7)"}`,marginBottom:4}}>
-                    <div style={{fontWeight:600,fontSize:12,marginBottom:2}}>{t.project||"—"}</div>
+                    <div style={{fontWeight:600,fontSize:12,marginBottom:2}}>{t.project||" - "}</div>
                     <div style={{fontSize:11,color:"var(--ink3)",marginBottom:3}}>{(t.desc1||"").slice(0,50)}{(t.desc1||"").length>50?"...":""}</div>
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                       <span style={{fontSize:10,color:"var(--ink4)"}}>{t.member||""}</span>
@@ -469,7 +471,7 @@ function DailyOps({toast,team,onAdd,days,setDays,loaded,syncing,projects}){
       <button onClick={aDay} style={btnP}>+ New Day</button>
     </div>
     <div style={{padding:"16px 20px 60px",display:"flex",flexDirection:"column",gap:14}}>
-      {opsView==="board"?<BoardView/>:<>
+      {opsView==="board"?<BoardView/>:<React.Fragment>
         {/* Recent days (last 7) */}
         {recentDays.map(day=><DaySection key={day.id} day={day}/>)}
         {/* Archive */}
@@ -482,7 +484,7 @@ function DailyOps({toast,team,onAdd,days,setDays,loaded,syncing,projects}){
             {archiveDays.map(day=><DaySection key={day.id} day={day}/>)}
           </div>}
         </div>}
-      </>}
+      </React.Fragment>}
     </div>
   </div>;
 }
@@ -492,7 +494,7 @@ function DailyOps({toast,team,onAdd,days,setDays,loaded,syncing,projects}){
 function LeadForm({l,uL,acts,aA,uA,dA}){
   const aging=dBtw(l.firstContact,td());const since=dBtw(l.lastContact,td());const isOD=l.nextFollowup&&l.nextFollowup<td()&&!["Won","Dead"].includes(l.status);const isDT=l.nextFollowup===td();const lA=(acts||[]).filter(a=>a.leadId===l.id).sort((a,b)=>(b.date||"").localeCompare(a.date||""));
   return<div>
-    {isOD&&<div style={{padding:"8px 14px",borderRadius:"var(--rs)",background:"var(--red-bg)",border:"1px solid var(--red-bd)",color:"var(--red)",fontSize:12,fontWeight:700,marginBottom:16}}>⚠ Follow-up overdue — {Math.abs(dBtw(l.nextFollowup,td()))}d</div>}
+    {isOD&&<div style={{padding:"8px 14px",borderRadius:"var(--rs)",background:"var(--red-bg)",border:"1px solid var(--red-bd)",color:"var(--red)",fontSize:12,fontWeight:700,marginBottom:16}}>⚠ Follow-up overdue  -  {Math.abs(dBtw(l.nextFollowup,td()))}d</div>}
     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:14,marginBottom:16}}>
       <div><div style={FL}>Client</div><Inp value={l.client} onChange={v=>uL(l.id,"client",v)} ph="Username..." bold/></div>
       <div><div style={FL}>Job</div><Inp value={l.job} onChange={v=>uL(l.id,"job",v)} ph="Title..."/></div>
@@ -550,7 +552,7 @@ function LeadsTab({toast,leads,setLeads,acts,setActs,loaded,syncing,actsSyncing,
   const overdue=fl.filter(l=>l.nextFollowup&&l.nextFollowup<td()&&!["Won","Dead"].includes(l.status));
   const m=meta||{};const uM=(f,v)=>setMeta(p=>({...(p||{}), [f]:v}));
 
-  /* LeadForm is defined at top level — see above */
+  /* LeadForm is defined at top level  -  see above */
   return<div style={{animation:"fadeIn .3s"}}>
     {/* Date & Memo */}
     <div style={{padding:"16px 20px 0",background:"var(--surface)"}}>
@@ -583,7 +585,7 @@ function LeadsTab({toast,leads,setLeads,acts,setActs,loaded,syncing,actsSyncing,
               {/* Lead type badge */}
               <span style={{fontSize:9,fontWeight:700,padding:"2px 8px",borderRadius:99,background:lt==="Existing Client"?"var(--purple-bg)":"var(--cyan-bg)",color:lt==="Existing Client"?"var(--purple)":"var(--cyan)",whiteSpace:"nowrap"}}>{lt==="Existing Client"?"EXISTING":"NEW"}</span>
               <div style={{textAlign:"right",minWidth:60}}><div style={{fontSize:17,fontWeight:800,color:"var(--green)"}}>{l.budget?fmtM(l.budget):""}</div></div>
-              <Badge c={st?st.c:"var(--ink3)"} bg={st?st.bg:"var(--ink7)"} bd={st?st.bd:"var(--ink6)"}>{l.status||"—"}</Badge>
+              <Badge c={st?st.c:"var(--ink3)"} bg={st?st.bg:"var(--ink7)"} bd={st?st.bd:"var(--ink6)"}>{l.status||" - "}</Badge>
               <span style={{fontSize:11,fontWeight:700,padding:"3px 10px",borderRadius:99,background:l.priority==="High"?"var(--red-bg)":l.priority==="Medium"?"var(--amber-bg)":"var(--ink7)",color:l.priority==="High"?"var(--red)":l.priority==="Medium"?"var(--amber)":"var(--ink3)"}}>{l.priority}</span>
               <div style={{textAlign:"center",minWidth:45}}><div style={{fontSize:14,fontWeight:800,color:aging>14?"var(--red)":aging>7?"var(--amber)":"var(--green)"}}>{aging}d</div></div>
               <span style={{color:"var(--ink5)",fontSize:10,transform:isE?"rotate(180deg)":"",transition:"transform .2s",display:"inline-block"}}>▼</span>
@@ -603,7 +605,7 @@ function LeadsTab({toast,leads,setLeads,acts,setActs,loaded,syncing,actsSyncing,
             <div style={{padding:8,display:"flex",flexDirection:"column",gap:8,minHeight:80}}>
               {items.map(l=>{const isOD=l.nextFollowup&&l.nextFollowup<td()&&!["Won","Dead"].includes(l.status);const isDr=boardDrag===l.id;const lt=l.leadType||"New Lead";
                 return<div key={l.id} draggable onDragStart={e=>bDS(e,l.id)} onDragEnd={()=>{setBoardDrag(null);setTimeout(()=>{didDrag.current=false},50)}} onClick={()=>bClick(l.id)} className={`board-card${isDr?" dragging":""}`} style={{background:"var(--surface2)",borderRadius:8,padding:"10px 12px",border:`1px solid ${isOD?"var(--red-bd)":"var(--ink7)"}`}}>
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:3}}><span style={{fontWeight:700,fontSize:13}}>{l.client||"—"}</span><span style={{fontSize:8,fontWeight:700,padding:"1px 5px",borderRadius:99,background:lt==="Existing Client"?"var(--purple-bg)":"var(--cyan-bg)",color:lt==="Existing Client"?"var(--purple)":"var(--cyan)"}}>{lt==="Existing Client"?"EXT":"NEW"}</span></div>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:3}}><span style={{fontWeight:700,fontSize:13}}>{l.client||" - "}</span><span style={{fontSize:8,fontWeight:700,padding:"1px 5px",borderRadius:99,background:lt==="Existing Client"?"var(--purple-bg)":"var(--cyan-bg)",color:lt==="Existing Client"?"var(--purple)":"var(--cyan)"}}>{lt==="Existing Client"?"EXT":"NEW"}</span></div>
                   <div style={{fontSize:11,color:"var(--ink3)",marginBottom:6}}>{l.job||""}</div>
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}><span style={{fontSize:14,fontWeight:800,color:"var(--green)"}}>{l.budget?fmtM(l.budget):""}</span><span style={{fontSize:9,fontWeight:700,padding:"2px 7px",borderRadius:99,background:l.priority==="High"?"var(--red-bg)":"var(--ink7)",color:l.priority==="High"?"var(--red)":"var(--ink3)"}}>{l.priority}</span></div>
                   {isOD&&<div style={{fontSize:10,color:"var(--red)",fontWeight:700,marginTop:4}}>⚠ Overdue</div>}
@@ -614,10 +616,10 @@ function LeadsTab({toast,leads,setLeads,acts,setActs,loaded,syncing,actsSyncing,
       </div>}
       {/* ACTIVITY */}
       {view==="activity"&&<div style={{background:"var(--surface)",borderRadius:"var(--r)",border:"1px solid var(--ink6)",overflow:"hidden"}}>
-        <div style={{padding:"14px 20px",borderBottom:"1px solid var(--ink6)",display:"flex",justifyContent:"space-between",alignItems:"center"}}><span style={{fontWeight:700,fontSize:14}}>Activities — {(acts||[]).length}</span><button onClick={()=>aA("")} style={btnP}>+ Log</button></div>
+        <div style={{padding:"14px 20px",borderBottom:"1px solid var(--ink6)",display:"flex",justifyContent:"space-between",alignItems:"center"}}><span style={{fontWeight:700,fontSize:14}}>Activities  -  {(acts||[]).length}</span><button onClick={()=>aA("")} style={btnP}>+ Log</button></div>
         <div style={{overflowX:"auto",padding:"8px 16px 16px"}}>
           <div style={{display:"grid",gridTemplateColumns:"100px 80px 120px 140px 1fr 1fr 30px",gap:10,padding:"8px 0",borderBottom:"2px solid var(--ink7)",minWidth:750}}>{["Date","Lead","Client","Type","Summary","Next",""].map(h=><div key={h} style={{fontSize:10,fontWeight:700,color:"var(--ink4)",textTransform:"uppercase"}}>{h}</div>)}</div>
-          {[...(acts||[])].sort((a,b)=>(b.date||"").localeCompare(a.date||"")).map(a=><div key={a.id} className="row-hover" style={{display:"grid",gridTemplateColumns:"100px 80px 120px 140px 1fr 1fr 30px",gap:10,padding:"5px 0",borderBottom:"1px solid var(--ink7)",alignItems:"center",minWidth:750}}><DtInp value={a.date} onChange={v=>uA(a.id,"date",v)}/><Sel value={a.leadId} onChange={v=>uA(a.id,"leadId",v)} options={leads.map(l=>l.id)} ph="—"/><span style={{fontSize:12,fontWeight:600}}>{(leads.find(l=>l.id===a.leadId)||{}).client||"—"}</span><Sel value={a.type} onChange={v=>uA(a.id,"type",v)} options={ACT_TYPES} ph="Type..."/><Inp value={a.summary} onChange={v=>uA(a.id,"summary",v)} ph="Summary..."/><Inp value={a.next} onChange={v=>uA(a.id,"next",v)} ph="Next..."/><Del onClick={()=>dA(a.id)}/></div>)}
+          {[...(acts||[])].sort((a,b)=>(b.date||"").localeCompare(a.date||"")).map(a=><div key={a.id} className="row-hover" style={{display:"grid",gridTemplateColumns:"100px 80px 120px 140px 1fr 1fr 30px",gap:10,padding:"5px 0",borderBottom:"1px solid var(--ink7)",alignItems:"center",minWidth:750}}><DtInp value={a.date} onChange={v=>uA(a.id,"date",v)}/><Sel value={a.leadId} onChange={v=>uA(a.id,"leadId",v)} options={leads.map(l=>l.id)} ph=" - "/><span style={{fontSize:12,fontWeight:600}}>{(leads.find(l=>l.id===a.leadId)||{}).client||" - "}</span><Sel value={a.type} onChange={v=>uA(a.id,"type",v)} options={ACT_TYPES} ph="Type..."/><Inp value={a.summary} onChange={v=>uA(a.id,"summary",v)} ph="Summary..."/><Inp value={a.next} onChange={v=>uA(a.id,"next",v)} ph="Next..."/><Del onClick={()=>dA(a.id)}/></div>)}
         </div>
       </div>}
     </div>
