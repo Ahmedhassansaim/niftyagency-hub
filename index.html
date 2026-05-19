@@ -84,13 +84,20 @@ const PRIOS=["High","Medium","Low"];
 const ACT_TYPES=["Proposal Sent","Client Replied","Follow-up Sent","Call Scheduled","Call Completed","Sample Sent","Contract Discussion","Lost Lead","Won Lead","Note"];
 const PROJ_ACT_TYPES=["Development","Design","Meeting","Deployment","Bug Fix","Review","Communication","Milestone Delivered","Note"];
 const LEAD_TYPES=["New Lead","Existing Client"];
-let _c=Date.now();const uid=()=>`_${_c++}`;const td=()=>new Date().toISOString().slice(0,10);
+let _c=Date.now();const uid=()=>`_${_c++}`;
+const PKT={tz:"Asia/Karachi"};
+const td=()=>new Date().toLocaleDateString("en-CA",{timeZone:PKT.tz}); /* YYYY-MM-DD in PKT */
+const nowPKT=()=>{const d=new Date();return d.toLocaleString("sv-SE",{timeZone:PKT.tz}).replace(" ","T").slice(0,16)}; /* YYYY-MM-DDTHH:MM for datetime-local */
+const fullNowPKT=()=>new Date().toLocaleString("sv-SE",{timeZone:PKT.tz}).replace(" ","T"); /* with seconds */
 const dBtw=(a,b)=>{if(!a||!b)return 0;return Math.floor((new Date(b)-new Date(a))/864e5)};
 const fmtD=d=>{if(!d)return"—";try{return new Date(d+"T00:00:00").toLocaleDateString("en-US",{month:"short",day:"numeric"})}catch{return d}};
+const fmtDT=d=>{if(!d)return"—";try{const dt=new Date(d);if(isNaN(dt))return d.slice(0,10);return dt.toLocaleString("en-US",{month:"short",day:"numeric",hour:"numeric",minute:"2-digit",hour12:true,timeZone:PKT.tz})}catch{return d}};
+const isOverdueNow=eta=>{if(!eta)return false;try{const now=nowPKT();return eta<now}catch{return false}};
+const isDueToday=eta=>{if(!eta)return false;return eta.slice(0,10)===td()};
 const fmtM=n=>n?`$${Number(n).toLocaleString()}`:"—";
-const bTask=()=>({id:uid(),project:"",linkedProject:"",member:"",desc1:"",desc2:"",status:"To Do",time:"",eta:"",createdAt:td()});
+const bTask=()=>({id:uid(),project:"",linkedProject:"",member:"",desc1:"",desc2:"",status:"To Do",time:"",eta:"",createdAt:fullNowPKT()});
 const bProj=()=>({id:uid(),name:"",client:"",billing:"Hourly",value:0,hoursEstimated:0,hoursUsed:0,status:"Active",startDate:td(),dueDate:"",teamLead:"",trelloLink:"",niftyLink:"",notes:""});
-const D_OPS=[{id:"d1",day:"Thursday",date:"2026-04-16",tasks:[{id:"t1",project:"Amro Al Hasan",member:"Hafiz Abdul Manan",desc1:"External lift logic",desc2:"",status:"In Progress",time:"",linkedProject:"",eta:"",createdAt:"2026-04-16"}]}];
+const D_OPS=[{id:"d1",day:"Thursday",date:"2026-04-16",tasks:[{id:"t1",project:"Amro Al Hasan",member:"Hafiz Abdul Manan",desc1:"External lift logic",desc2:"",status:"In Progress",time:"",linkedProject:"",eta:"",createdAt:"2026-04-16T09:00:00"}]}];
 const D_LEADS=[{id:"L-001",client:"acme_design_co",job:"Landing page",source:"Upwork Job Post",type:"Web Development",budget:1500,firstContact:"2026-04-14",lastContact:"2026-04-14",nextFollowup:"2026-04-18",status:"Proposal Sent",priority:"High",proposalSent:true,leadType:"New Lead",notes:""}];
 const D_ACT=[];const D_PROJ=[];const D_PACT=[];
 
@@ -106,6 +113,7 @@ const FL={fontSize:10,fontWeight:700,color:"var(--ink4)",textTransform:"uppercas
 const TeamSel=({value,onChange,team,onAdd})=>{const hc=e=>{if(e.target.value==="__add__"){const n=prompt("Enter new team member:");if(n&&n.trim()){onAdd(n.trim());onChange(n.trim())}}else onChange(e.target.value)};return<select value={value||""} onChange={hc} style={{width:"100%",padding:"8px 10px",border:"1.5px solid var(--ink6)",borderRadius:"var(--rs)",fontSize:12,fontWeight:value?600:400,outline:"none",cursor:"pointer",background:"var(--surface)",color:value?"var(--ink)":"var(--ink4)"}}><option value="">Assign...</option>{team.map(m=><option key={m}>{m}</option>)}<option value="__add__" style={{fontWeight:700,color:"#2563eb"}}>+ Add new...</option></select>};
 const ProjSel=({value,onChange,projects,id})=>{const dlId=`pl-${id||'def'}`;return<div style={{position:"relative"}}><input list={dlId} value={value||""} onChange={e=>onChange(e.target.value)} placeholder="Search & link project..." style={{width:"100%",padding:"8px 10px",border:"1.5px solid var(--ink6)",borderRadius:"var(--rs)",fontSize:12,fontWeight:value?600:400,outline:"none",background:"var(--surface)",color:value?"var(--ink)":"var(--ink4)"}} onFocus={e=>e.target.style.borderColor="var(--accent)"} onBlur={e=>e.target.style.borderColor="var(--ink6)"}/><datalist id={dlId}>{projects.map(p=><option key={p.id} value={p.name}>{p.name} — {p.client||"?"}</option>)}</datalist></div>};
 const Sync=({s})=><span style={{display:"inline-flex",alignItems:"center",fontSize:10,color:"var(--ink4)",gap:4}}><span style={{width:8,height:8,borderRadius:99,background:s?"var(--amber)":"var(--green)",display:"inline-block"}}/>{s?"Saving...":"Synced"}</span>;
+const ETAInp=({value,onChange})=>{const od=isOverdueNow(value);const dt=isDueToday(value);return<input type="datetime-local" value={value||""} onChange={e=>onChange(e.target.value)} style={{padding:"6px 6px",border:`1.5px solid ${od?"var(--red-bd)":dt?"var(--orange-bd)":"var(--ink6)"}`,borderRadius:"var(--rs)",fontSize:11,outline:"none",background:od?"var(--red-bg)":dt?"var(--orange-bg)":"var(--surface)",width:"100%",fontFamily:"inherit",color:od?"var(--red)":dt?"var(--orange)":"var(--ink)"}}/>};
 
 /* ═══ NOTIFICATION BELL ═══ */
 function NotifBell({leads,projects,acts,dismissed,setDismissed}){
@@ -340,7 +348,7 @@ function DailyOps({toast,team,onAdd,days,setDays,loaded,syncing,projects}){
   const onDr=(e,did,tid)=>{e.preventDefault();setDOV(null);if(!di||di.did!==did)return;setDays(p=>p.map(d=>{if(d.id!==did)return d;const ts=[...d.tasks];const fi=ts.findIndex(t=>t.id===di.tid);const ti=ts.findIndex(t=>t.id===tid);if(fi<0||ti<0||fi===ti)return d;const[m]=ts.splice(fi,1);ts.splice(ti,0,m);return{...d,tasks:ts}}));setDI(null);toast("Reordered")};
 
   /* Stats & filters */
-  const gS=ts=>{const t=ts.length,d=ts.filter(x=>x.status==="Completed").length,h=ts.reduce((s,x)=>s+(parseFloat(x.time)||0),0),ov=ts.filter(x=>x.eta&&x.eta<td()&&x.status!=="Completed").length;return{total:t,done:d,hrs:h,overdue:ov}};
+  const gS=ts=>{const t=ts.length,d=ts.filter(x=>x.status==="Completed").length,h=ts.reduce((s,x)=>s+(parseFloat(x.time)||0),0),ov=ts.filter(x=>isOverdueNow(x.eta)&&x.status!=="Completed").length;return{total:t,done:d,hrs:h,overdue:ov}};
   const gs=gS(days.flatMap(d=>d.tasks));
   const mF=t=>{if(fM&&t.member!==fM)return false;if(fS&&t.status!==fS)return false;if(q){const s=q.toLowerCase();return[t.project,t.linkedProject,t.desc1,t.desc2,t.member].some(x=>(x||"").toLowerCase().includes(s))}return true};
   const projNames=(projects||[]).filter(p=>p.status==="Active");
@@ -354,7 +362,7 @@ function DailyOps({toast,team,onAdd,days,setDays,loaded,syncing,projects}){
   const sortByProj=(tasks)=>{const sorted=[...tasks];sorted.sort((a,b)=>{const ap=(a.linkedProject||"zzz").toLowerCase();const bp=(b.linkedProject||"zzz").toLowerCase();return ap.localeCompare(bp)});return sorted};
 
   /* Grid columns: drag | project | linked | team | description | notes | status | eta | created | hrs | del */
-  const gc="24px 1.8fr 1.2fr 1fr 2fr 1.5fr 1.2fr 90px 70px 55px 30px";
+  const gc="24px 1.8fr 1.2fr 1fr 2fr 1.5fr 1.1fr 140px 90px 55px 30px";
   const headers=["Project & Client","Linked Project","Team","Description","Notes","Status","ETA","Created","Hrs",""];
 
   /* Render a single day section */
@@ -380,11 +388,11 @@ function DailyOps({toast,team,onAdd,days,setDays,loaded,syncing,projects}){
       {isO&&<div style={{overflowX:"auto",padding:"4px 10px 12px"}}>
         <div style={{display:"grid",gridTemplateColumns:gc,gap:6,padding:"8px 4px 6px",borderBottom:"2px solid var(--ink7)",minWidth:1050}}><div/>{headers.map(h=><div key={h} style={{fontSize:10,fontWeight:700,color:"var(--ink4)",textTransform:"uppercase",letterSpacing:".05em"}}>{h}</div>)}</div>
         {ft.map((t,i)=>{const isDO=dov&&dov.did===day.id&&dov.tid===t.id;
-          const etaOD=t.eta&&t.eta<td()&&t.status!=="Completed";const etaToday=t.eta===td();
+          const etaOD=isOverdueNow(t.eta)&&t.status!=="Completed";const etaToday=isDueToday(t.eta);
           const prevProj=i>0?ft[i-1].linkedProject:null;const showProjDivider=t.linkedProject&&t.linkedProject!==prevProj;
           return<React.Fragment key={t.id}>
             {showProjDivider&&<div style={{gridColumn:"1/-1",padding:"6px 8px 2px",fontSize:10,fontWeight:700,color:"var(--accent2)",borderTop:i>0?"2px solid var(--accent-border)":"none",marginTop:i>0?4:0}}>📂 {t.linkedProject}</div>}
-            <div draggable className={`row-hover${isDO?" drag-over":""}`} onDragStart={e=>onDS(e,day.id,t.id)} onDragEnd={onDE} onDragOver={e=>onDO(e,day.id,t.id)} onDragLeave={()=>setDOV(null)} onDrop={e=>onDr(e,day.id,t.id)} style={{display:"grid",gridTemplateColumns:gc,gap:6,padding:"6px 4px",borderBottom:"1px solid var(--ink7)",alignItems:"center",minWidth:1050,background:etaOD?"var(--red-bg)":i%2?"var(--surface2)":"var(--surface)",transition:"background .1s"}}>
+            <div draggable className={`row-hover${isDO?" drag-over":""}`} onDragStart={e=>onDS(e,day.id,t.id)} onDragEnd={onDE} onDragOver={e=>onDO(e,day.id,t.id)} onDragLeave={()=>setDOV(null)} onDrop={e=>onDr(e,day.id,t.id)} style={{display:"grid",gridTemplateColumns:gc,gap:6,padding:"6px 4px",borderBottom:"1px solid var(--ink7)",alignItems:"center",minWidth:1080,background:etaOD?"var(--red-bg)":i%2?"var(--surface2)":"var(--surface)",transition:"background .1s"}}>
             <div className="drag-handle">⠿</div>
             <TipInp value={t.project} onChange={v=>uTask(day.id,t.id,"project",v)} ph="Project & Client..." bold/>
             <ProjSel value={t.linkedProject} onChange={v=>uTask(day.id,t.id,"linkedProject",v)} projects={projNames} id={t.id}/>
@@ -392,8 +400,8 @@ function DailyOps({toast,team,onAdd,days,setDays,loaded,syncing,projects}){
             <TipInp value={t.desc1} onChange={v=>uTask(day.id,t.id,"desc1",v)} ph="Task description..."/>
             <TipInp value={t.desc2} onChange={v=>uTask(day.id,t.id,"desc2",v)} ph="Notes..."/>
             <Sel value={t.status} onChange={v=>uTask(day.id,t.id,"status",v)} options={OPS_ST} ph="Status..." sty={OPS_ST}/>
-            <DtInp value={t.eta} onChange={v=>uTask(day.id,t.id,"eta",v)} warn={etaOD?"overdue":etaToday?"today":""}/>
-            <span style={{fontSize:10,color:"var(--ink4)",padding:"0 4px"}} title={t.createdAt||""}>{t.createdAt?fmtD(t.createdAt):"—"}</span>
+            <ETAInp value={t.eta} onChange={v=>uTask(day.id,t.id,"eta",v)}/>
+            <span style={{fontSize:9,color:"var(--ink4)",padding:"0 2px",lineHeight:1.3}} title={t.createdAt||""}>{t.createdAt?fmtDT(t.createdAt):"—"}</span>
             <Inp value={t.time} onChange={v=>uTask(day.id,t.id,"time",v)} ph="0" small mono/>
             <Del onClick={()=>dTask(day.id,t.id)}/>
           </div></React.Fragment>})}
@@ -403,33 +411,46 @@ function DailyOps({toast,team,onAdd,days,setDays,loaded,syncing,projects}){
     </section>;
   };
 
-  /* Board view: group all recent tasks by status, sub-grouped by project */
+  /* Board view: single day, selectable */
+  const[boardDay,setBoardDay]=useState(null);
   const BoardView=()=>{
-    const allTasks=[];recentDays.forEach(d=>{d.tasks.filter(mF).forEach(t=>allTasks.push({...t,dayId:d.id,dayDate:d.date}))});
-    return<div style={{display:"flex",gap:10,overflowX:"auto",paddingBottom:20}}>
-      {OPS_ST.map(st=>{const items=allTasks.filter(t=>t.status===st.v);
-        const byProj={};items.forEach(t=>{const k=t.linkedProject||"Unlinked";if(!byProj[k])byProj[k]=[];byProj[k].push(t)});
-        return<div key={st.v} style={{minWidth:240,flex:"1 0 240px",background:"var(--surface)",borderRadius:"var(--r)",border:"1px solid var(--ink6)",overflow:"hidden"}}>
-          <div style={{padding:"10px 14px",borderBottom:`2.5px solid ${st.bd}`,background:st.bg}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}><span style={{fontWeight:800,fontSize:13,color:st.c}}>{st.v}</span><span style={{background:"var(--navy)",color:"#fff",fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:99}}>{items.length}</span></div>
-          </div>
-          <div style={{padding:8,display:"flex",flexDirection:"column",gap:4,minHeight:60}}>
-            {Object.entries(byProj).map(([proj,tasks])=><div key={proj}>
-              <div style={{fontSize:9,fontWeight:700,color:"var(--accent2)",padding:"4px 6px 2px",textTransform:"uppercase"}}>📂 {proj}</div>
-              {tasks.map(t=>{const etaOD=t.eta&&t.eta<td()&&t.status!=="Completed";
-                return<div key={t.id} style={{background:etaOD?"var(--red-bg)":"var(--surface2)",borderRadius:6,padding:"8px 10px",border:`1px solid ${etaOD?"var(--red-bd)":"var(--ink7)"}`,marginBottom:4}}>
-                  <div style={{fontWeight:600,fontSize:12,marginBottom:2}} title={t.project}>{t.project||"—"}</div>
-                  <div style={{fontSize:11,color:"var(--ink3)",marginBottom:3}} title={t.desc1}>{(t.desc1||"").slice(0,60)}{(t.desc1||"").length>60?"...":""}</div>
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                    <span style={{fontSize:10,color:"var(--ink4)"}}>{t.member||""}</span>
-                    {t.eta&&<span style={{fontSize:9,fontWeight:700,color:etaOD?"var(--red)":"var(--ink4)"}}>{etaOD?"⚠ ":""}{fmtD(t.eta)}</span>}
-                  </div>
-                  {t.time&&<div style={{fontSize:10,color:"var(--cyan)",marginTop:2}}>{t.time}h</div>}
-                </div>})}
-            </div>)}
-            {items.length===0&&<div style={{padding:16,textAlign:"center",color:"var(--ink5)",fontSize:11}}>No tasks</div>}
-          </div>
-        </div>})}
+    const availDays=recentDays.filter(d=>d.tasks.length>0);
+    const selDay=boardDay?days.find(d=>d.id===boardDay):availDays[0];
+    if(!selDay)return<div style={{padding:40,textAlign:"center",color:"var(--ink4)"}}>No days with tasks</div>;
+    const dayTasks=selDay.tasks.filter(mF);
+    return<div>
+      {/* Day selector */}
+      <div style={{marginBottom:14,display:"flex",alignItems:"center",gap:10}}>
+        <span style={{fontSize:12,fontWeight:700,color:"var(--ink2)"}}>Showing:</span>
+        <select value={selDay.id} onChange={e=>setBoardDay(e.target.value)} style={{...fltSel,fontWeight:700,fontSize:13}}>
+          {days.map(d=><option key={d.id} value={d.id}>{d.day} — {fmtD(d.date)} ({d.tasks.length} tasks)</option>)}
+        </select>
+      </div>
+      <div style={{display:"flex",gap:10,overflowX:"auto",paddingBottom:20}}>
+        {OPS_ST.map(st=>{const items=dayTasks.filter(t=>t.status===st.v);
+          const byProj={};items.forEach(t=>{const k=t.linkedProject||"Unlinked";if(!byProj[k])byProj[k]=[];byProj[k].push(t)});
+          return<div key={st.v} style={{minWidth:230,flex:"1 0 230px",background:"var(--surface)",borderRadius:"var(--r)",border:"1px solid var(--ink6)",overflow:"hidden"}}>
+            <div style={{padding:"10px 14px",borderBottom:`2.5px solid ${st.bd}`,background:st.bg}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}><span style={{fontWeight:800,fontSize:13,color:st.c}}>{st.v}</span><span style={{background:"var(--navy)",color:"#fff",fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:99}}>{items.length}</span></div>
+            </div>
+            <div style={{padding:8,display:"flex",flexDirection:"column",gap:4,minHeight:60}}>
+              {Object.entries(byProj).map(([proj,tasks])=><div key={proj}>
+                {proj!=="Unlinked"&&<div style={{fontSize:9,fontWeight:700,color:"var(--accent2)",padding:"4px 6px 2px",textTransform:"uppercase"}}>📂 {proj}</div>}
+                {tasks.map(t=>{const etaOD=isOverdueNow(t.eta)&&t.status!=="Completed";
+                  return<div key={t.id} title={`${t.desc1||""}\n${t.desc2||""}`} style={{background:etaOD?"var(--red-bg)":"var(--surface2)",borderRadius:6,padding:"8px 10px",border:`1px solid ${etaOD?"var(--red-bd)":"var(--ink7)"}`,marginBottom:4}}>
+                    <div style={{fontWeight:600,fontSize:12,marginBottom:2}}>{t.project||"—"}</div>
+                    <div style={{fontSize:11,color:"var(--ink3)",marginBottom:3}}>{(t.desc1||"").slice(0,50)}{(t.desc1||"").length>50?"...":""}</div>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                      <span style={{fontSize:10,color:"var(--ink4)"}}>{t.member||""}</span>
+                      {t.eta&&<span style={{fontSize:9,fontWeight:700,color:etaOD?"var(--red)":"var(--ink4)"}}>{etaOD?"⚠ ":""}{fmtDT(t.eta)}</span>}
+                    </div>
+                    {t.time&&<div style={{fontSize:10,color:"var(--cyan)",marginTop:2}}>{t.time}h</div>}
+                  </div>})}
+              </div>)}
+              {items.length===0&&<div style={{padding:16,textAlign:"center",color:"var(--ink5)",fontSize:11}}>No tasks</div>}
+            </div>
+          </div>})}
+      </div>
     </div>;
   };
 
