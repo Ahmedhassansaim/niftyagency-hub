@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>NiftyCode  -  Agency Hub</title>
+<title>NiftyCode - Agency Hub</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%230f172a'/><text x='16' y='22' text-anchor='middle' font-size='18' fill='%2360a5fa'>N</text></svg>"/>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
@@ -27,7 +27,7 @@ select{-webkit-appearance:none;-moz-appearance:none;appearance:none;background-i
 .dragging{opacity:.4}
 .board-card{transition:box-shadow .15s,opacity .2s;cursor:pointer}.board-card:hover{box-shadow:0 3px 10px rgba(0,0,0,.08)}.board-card.dragging{opacity:.4}
 .notif-panel{position:absolute;right:0;top:44px;width:380px;max-height:480px;overflow-y:auto;background:var(--surface);border-radius:var(--r);border:1px solid var(--ink6);box-shadow:0 16px 48px rgba(0,0,0,.15);z-index:300;animation:fadeIn .15s}
-.proj-drop-item:hover{background:var(--ink7)}
+.pdrop-item{padding:7px 10px;font-size:12px;cursor:pointer;border-bottom:1px solid var(--ink7)}.pdrop-item:hover{background:var(--ink7)}
 </style>
 </head>
 <body>
@@ -45,7 +45,7 @@ function useSD(key,def){
   return[d,setD,ld,sy];
 }
 
-/* ═══ AUTH ═══ */
+/* AUTH */
 function Auth({onAuth}){
   const[mode,setMode]=useState("login");const[em,setEm]=useState("");const[pw,setPw]=useState("");const[ld,setLd]=useState(false);const[err,setErr]=useState("");const[ok,setOk]=useState("");
   const doL=async e=>{e.preventDefault();setErr("");setLd(true);const{data,error}=await sb.auth.signInWithPassword({email:em,password:pw});setLd(false);if(error)setErr(error.message);else onAuth(data.user)};
@@ -65,66 +65,69 @@ function Auth({onAuth}){
           {mode==="login"&&<div style={{textAlign:"right",marginTop:-12,marginBottom:16}}><button type="button" onClick={()=>{setMode("forgot");setErr("");setOk("")}} style={{background:"none",border:"none",color:"var(--accent)",fontSize:12,fontWeight:600,cursor:"pointer"}}>Forgot password?</button></div>}
           <button type="submit" disabled={ld} style={{width:"100%",padding:"13px",borderRadius:"var(--rs)",border:"none",background:ld?"var(--ink5)":"linear-gradient(135deg,var(--accent),var(--accent2))",color:"#fff",fontSize:14,fontWeight:700,cursor:ld?"wait":"pointer",boxShadow:"0 4px 16px rgba(37,99,235,.3)"}}>{ld?"Wait...":mode==="login"?"Sign In":"Send Reset Link"}</button>
         </form>
-        <div style={{textAlign:"center",marginTop:20,fontSize:12,color:"var(--ink3)"}}>{mode==="forgot"?<button type="button" onClick={()=>{setMode("login");setErr("");setOk("")}} style={{background:"none",border:"none",color:"var(--accent)",fontWeight:700,cursor:"pointer",fontSize:13}}>← Back</button>:"Need access? Ask your admin."}</div>
+        <div style={{textAlign:"center",marginTop:20,fontSize:12,color:"var(--ink3)"}}>{mode==="forgot"?<button type="button" onClick={()=>{setMode("login");setErr("");setOk("")}} style={{background:"none",border:"none",color:"var(--accent)",fontWeight:700,cursor:"pointer",fontSize:13}}>Back</button>:"Need access? Ask your admin."}</div>
       </div>
     </div>
   </div>;
 }
 
-/* ═══ CONSTANTS ═══ */
+/* CONSTANTS */
 const DEF_TEAM=["Abdul Rafay","Abdul Rehman","Adil Sheikh","Ahmad Anjum","Ali Mazhar","Asad Ullah","Hafiz Abdul Manan","Hassan Flowveo","Muhammad Zohaib","Qasim Sardar","Saad Jilani","Saim Iqbal","Shayan","Sohaib Tufail","Yousaf","Zohaib Soraya"];
 const WDAYS=["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
 const OPS_ST=[{v:"To Do",c:"var(--ink3)",bg:"var(--ink7)",bd:"var(--ink6)"},{v:"In Progress",c:"var(--accent2)",bg:"var(--accent-light)",bd:"var(--accent-border)"},{v:"Submitted, Review Requested",c:"var(--orange)",bg:"var(--orange-bg)",bd:"var(--orange-bd)"},{v:"Completed",c:"var(--green)",bg:"var(--green-bg)",bd:"var(--green-bd)"},{v:"Carry Forward",c:"var(--amber)",bg:"var(--amber-bg)",bd:"var(--amber-bd)"},{v:"Blocked",c:"var(--red)",bg:"var(--red-bg)",bd:"var(--red-bd)"},{v:"On Hold",c:"var(--purple)",bg:"var(--purple-bg)",bd:"var(--purple-bd)"}];
 const LEAD_ST=[{v:"New",c:"var(--ink3)",bg:"var(--ink7)",bd:"var(--ink6)",p:20},{v:"Contacted",c:"var(--cyan)",bg:"var(--cyan-bg)",bd:"var(--cyan-bd)",p:30},{v:"Proposal Sent",c:"var(--accent2)",bg:"var(--accent-light)",bd:"var(--accent-border)",p:40},{v:"In Discussion",c:"var(--orange)",bg:"var(--orange-bg)",bd:"var(--orange-bd)",p:60},{v:"Hot",c:"var(--red)",bg:"var(--red-bg)",bd:"var(--red-bd)",p:75},{v:"Warm",c:"var(--amber)",bg:"var(--amber-bg)",bd:"var(--amber-bd)",p:35},{v:"Cold",c:"var(--purple)",bg:"var(--purple-bg)",bd:"var(--purple-bd)",p:10},{v:"Won",c:"var(--green)",bg:"var(--green-bg)",bd:"var(--green-bd)",p:100},{v:"Dead",c:"var(--ink4)",bg:"var(--ink7)",bd:"var(--ink6)",p:0}];
 const PROJ_ST=[{v:"Active",c:"var(--green)",bg:"var(--green-bg)",bd:"var(--green-bd)"},{v:"On Hold",c:"var(--amber)",bg:"var(--amber-bg)",bd:"var(--amber-bd)"},{v:"Completed",c:"var(--accent2)",bg:"var(--accent-light)",bd:"var(--accent-border)"},{v:"Cancelled",c:"var(--red)",bg:"var(--red-bg)",bd:"var(--red-bd)"}];
 const BILL=["Hourly","Milestone","Fixed Price"];
-const getLS=v=>LEAD_ST.find(s=>s.v===v);const getPS=v=>PROJ_ST.find(s=>s.v===v);
+const getLS=v=>LEAD_ST.find(s=>s.v===v);
+const getPS=v=>PROJ_ST.find(s=>s.v===v);
 const SOURCES=["Upwork Job Post","Upwork Invitation","Upwork Search","Direct Message","Repeat Client","Referral"];
 const PTYPES=["Web Development","Mobile App","Design","Writing","Marketing","Data/AI","Consulting","Other"];
 const PRIOS=["High","Medium","Low"];
 const ACT_TYPES=["Proposal Sent","Client Replied","Follow-up Sent","Call Scheduled","Call Completed","Sample Sent","Contract Discussion","Lost Lead","Won Lead","Note"];
 const PROJ_ACT_TYPES=["Development","Design","Meeting","Deployment","Bug Fix","Review","Communication","Milestone Delivered","Note"];
 const LEAD_TYPES=["New Lead","Existing Client"];
-let _c=Date.now();const uid=()=>`_${_c++}`;
-const PKT={tz:"Asia/Karachi",off:5};
+let _c=Date.now();
+const uid=()=>`_${_c++}`;
+const PKT={off:5};
 const pad=n=>n<10?"0"+n:String(n);
-const pktNow=()=>{const d=new Date(Date.now()+PKT.off*36e5);return d};
+const pktNow=()=>new Date(Date.now()+PKT.off*36e5);
 const td=()=>{const d=pktNow();return d.getUTCFullYear()+"-"+pad(d.getUTCMonth()+1)+"-"+pad(d.getUTCDate())};
 const nowPKT=()=>{const d=pktNow();return td()+"T"+pad(d.getUTCHours())+":"+pad(d.getUTCMinutes())};
 const fullNowPKT=()=>{const d=pktNow();return nowPKT()+":"+pad(d.getUTCSeconds())};
 const dBtw=(a,b)=>{if(!a||!b)return 0;return Math.floor((new Date(b)-new Date(a))/864e5)};
-const fmtD=d=>{if(!d)return" - ";try{return new Date(d+"T00:00:00").toLocaleDateString("en-US",{month:"short",day:"numeric"})}catch(e){return d}};
-const fmtDT=d=>{if(!d)return" - ";try{var dt=new Date(d);if(isNaN(dt.getTime()))return String(d).slice(0,10);var mo=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];var h=dt.getHours();var ampm=h>=12?"PM":"AM";h=h%12||12;return mo[dt.getMonth()]+" "+dt.getDate()+", "+h+":"+pad(dt.getMinutes())+" "+ampm}catch(e){return String(d)}};
-const isOverdueNow=eta=>{if(!eta)return false;try{const now=nowPKT();return eta<now}catch(e){return false}};
+const fmtD=d=>{if(!d)return"-";try{return new Date(d+"T00:00:00").toLocaleDateString("en-US",{month:"short",day:"numeric"})}catch(e){return d}};
+const fmtDT=d=>{if(!d)return"-";try{const dt=new Date(d);if(isNaN(dt.getTime()))return String(d).slice(0,10);const mo=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];let h=dt.getHours();const ampm=h>=12?"PM":"AM";h=h%12||12;return mo[dt.getMonth()]+" "+dt.getDate()+", "+h+":"+pad(dt.getMinutes())+" "+ampm}catch(e){return String(d)}};
+const isOverdueNow=eta=>{if(!eta)return false;try{return eta<nowPKT()}catch(e){return false}};
 const isDueToday=eta=>{if(!eta)return false;return eta.slice(0,10)===td()};
-const fmtM=n=>n?`$${Number(n).toLocaleString()}`:" - ";
+const fmtM=n=>n?"$"+Number(n).toLocaleString():"-";
 const bTask=()=>({id:uid(),project:"",linkedProject:"",member:"",desc1:"",desc2:"",status:"To Do",time:"",eta:"",createdAt:fullNowPKT()});
 const bProj=()=>({id:uid(),name:"",client:"",billing:"Hourly",value:0,hoursEstimated:0,hoursUsed:0,status:"Active",startDate:td(),dueDate:"",teamLead:"",trelloLink:"",niftyLink:"",notes:""});
 const D_OPS=[{id:"d1",day:"Thursday",date:"2026-04-16",tasks:[{id:"t1",project:"Amro Al Hasan",member:"Hafiz Abdul Manan",desc1:"External lift logic",desc2:"",status:"In Progress",time:"",linkedProject:"",eta:"",createdAt:"2026-04-16T09:00:00"}]}];
 const D_LEADS=[{id:"L-001",client:"acme_design_co",job:"Landing page",source:"Upwork Job Post",type:"Web Development",budget:1500,firstContact:"2026-04-14",lastContact:"2026-04-14",nextFollowup:"2026-04-18",status:"Proposal Sent",priority:"High",proposalSent:true,leadType:"New Lead",notes:""}];
 const D_ACT=[];const D_PROJ=[];const D_PACT=[];
 
-/* ═══ MODULE-LEVEL PURE HELPERS (used by DaySection) ═══ */
-const gS=ts=>{const t=ts.length,d=ts.filter(x=>x.status==="Completed").length,h=ts.reduce((s,x)=>s+(parseFloat(x.time)||0),0),ov=ts.filter(x=>isOverdueNow(x.eta)&&x.status!=="Completed").length;return{total:t,done:d,hrs:h,overdue:ov}};
+/* MODULE-LEVEL PURE HELPERS - needed by top-level DaySection */
+const gS=ts=>{const tot=ts.length,done=ts.filter(x=>x.status==="Completed").length,hrs=ts.reduce((s,x)=>s+(parseFloat(x.time)||0),0),ov=ts.filter(x=>isOverdueNow(x.eta)&&x.status!=="Completed").length;return{total:tot,done,hrs,overdue:ov}};
 const sortByProj=tasks=>{const s=[...tasks];s.sort((a,b)=>(a.linkedProject||"zzz").toLowerCase().localeCompare((b.linkedProject||"zzz").toLowerCase()));return s};
 const OPS_GC="24px 1.8fr 1.2fr 1fr 2fr 1.5fr 1.1fr 140px 90px 55px 30px";
 const OPS_HDR=["Project & Client","Linked Project","Team","Description","Notes","Status","ETA","Created","Hrs",""];
 
-/* ═══ SHARED UI ═══ */
+/* SHARED UI */
 const Toast=({msg})=>msg?<div style={{position:"fixed",bottom:28,left:"50%",transform:"translateX(-50%)",background:"var(--navy)",color:"#fff",padding:"11px 28px",borderRadius:10,fontSize:13,fontWeight:600,zIndex:999,boxShadow:"0 12px 40px rgba(0,0,0,.3)",animation:"slideUp .25s ease"}}>{msg}</div>:null;
-const Badge=({c,bg,bd,children})=><span style={{display:"inline-flex",alignItems:"center",gap:4,background:bg,color:c,border:`1.5px solid ${bd}`,padding:"3px 12px",borderRadius:99,fontSize:11,fontWeight:700,whiteSpace:"nowrap"}}>{children}</span>;
+const Badge=({c,bg,bd,children})=><span style={{display:"inline-flex",alignItems:"center",gap:4,background:bg,color:c,border:"1.5px solid "+bd,padding:"3px 12px",borderRadius:99,fontSize:11,fontWeight:700,whiteSpace:"nowrap"}}>{children}</span>;
 const KPI=({label,val,c,bg,icon})=><div style={{background:bg,borderRadius:"var(--r)",padding:"14px 18px",minWidth:105,flex:"1 1 105px"}}><div style={{display:"flex",alignItems:"center",gap:5}}>{icon&&<span style={{fontSize:15}}>{icon}</span>}<span style={{fontSize:20,fontWeight:800,color:c,lineHeight:1}}>{val}</span></div><div style={{fontSize:10,color:"var(--ink3)",marginTop:5,fontWeight:700,letterSpacing:".04em",textTransform:"uppercase"}}>{label}</div></div>;
 const Inp=({value,onChange,ph,bold,mono,small})=><input value={value||""} onChange={e=>onChange(e.target.value)} placeholder={ph} style={{width:"100%",padding:small?"6px 8px":"8px 10px",border:"1.5px solid var(--ink6)",borderRadius:"var(--rs)",fontSize:small?11:13,outline:"none",background:"var(--surface)",fontWeight:bold?600:400,color:"var(--ink)",fontFamily:mono?"monospace":"inherit"}} onFocus={e=>e.target.style.borderColor="var(--accent)"} onBlur={e=>e.target.style.borderColor="var(--ink6)"}/>;
-const Sel=({value,onChange,options,ph,sty})=>{const st=sty?sty.find(x=>x.v===value):null;return<select value={value||""} onChange={e=>onChange(e.target.value)} style={{width:"100%",padding:"8px 10px",border:`1.5px solid ${st?st.bd:"var(--ink6)"}`,borderRadius:"var(--rs)",fontSize:12,fontWeight:value?600:400,outline:"none",cursor:"pointer",background:st?st.bg:"var(--surface)",color:st?st.c:value?"var(--ink)":"var(--ink4)"}}><option value="">{ph||"Select..."}</option>{options.map(o=>{const l=typeof o==="string"?o:o.v;return<option key={l} value={l}>{l}</option>})}</select>};
-const DtInp=({value,onChange,warn})=><input type="date" value={value||""} onChange={e=>onChange(e.target.value)} style={{padding:"8px 10px",border:`1.5px solid ${warn==="overdue"?"var(--red-bd)":warn==="today"?"var(--orange-bd)":"var(--ink6)"}`,borderRadius:"var(--rs)",fontSize:12,outline:"none",background:warn==="overdue"?"var(--red-bg)":warn==="today"?"var(--orange-bg)":"var(--surface)",width:"100%",fontFamily:"inherit",color:"var(--ink)"}}/>;
+const Sel=({value,onChange,options,ph,sty})=>{const st=sty?sty.find(x=>x.v===value):null;return<select value={value||""} onChange={e=>onChange(e.target.value)} style={{width:"100%",padding:"8px 10px",border:"1.5px solid "+(st?st.bd:"var(--ink6)"),borderRadius:"var(--rs)",fontSize:12,fontWeight:value?600:400,outline:"none",cursor:"pointer",background:st?st.bg:"var(--surface)",color:st?st.c:value?"var(--ink)":"var(--ink4)"}}><option value="">{ph||"Select..."}</option>{options.map(o=>{const l=typeof o==="string"?o:o.v;return<option key={l} value={l}>{l}</option>})}</select>};
+const DtInp=({value,onChange,warn})=><input type="date" value={value||""} onChange={e=>onChange(e.target.value)} style={{padding:"8px 10px",border:"1.5px solid "+(warn==="overdue"?"var(--red-bd)":warn==="today"?"var(--orange-bd)":"var(--ink6)"),borderRadius:"var(--rs)",fontSize:12,outline:"none",background:warn==="overdue"?"var(--red-bg)":warn==="today"?"var(--orange-bg)":"var(--surface)",width:"100%",fontFamily:"inherit",color:"var(--ink)"}}/>;
 const Del=({onClick})=><button onClick={onClick} style={{width:30,height:30,display:"flex",alignItems:"center",justifyContent:"center",borderRadius:"var(--rs)",border:"none",background:"transparent",color:"var(--ink5)",fontSize:14,cursor:"pointer",flexShrink:0}} onMouseEnter={e=>{e.currentTarget.style.background="var(--red-bg)";e.currentTarget.style.color="var(--red)"}} onMouseLeave={e=>{e.currentTarget.style.background="transparent";e.currentTarget.style.color="var(--ink5)"}}>✕</button>;
 const FL={fontSize:10,fontWeight:700,color:"var(--ink4)",textTransform:"uppercase",letterSpacing:".06em",marginBottom:5};
 const TeamSel=({value,onChange,team,onAdd})=>{const hc=e=>{if(e.target.value==="__add__"){const n=prompt("Enter new team member:");if(n&&n.trim()){onAdd(n.trim());onChange(n.trim())}}else onChange(e.target.value)};return<select value={value||""} onChange={hc} style={{width:"100%",padding:"8px 10px",border:"1.5px solid var(--ink6)",borderRadius:"var(--rs)",fontSize:12,fontWeight:value?600:400,outline:"none",cursor:"pointer",background:"var(--surface)",color:value?"var(--ink)":"var(--ink4)"}}><option value="">Assign...</option>{team.map(m=><option key={m}>{m}</option>)}<option value="__add__" style={{fontWeight:700,color:"#2563eb"}}>+ Add new...</option></select>};
 const Sync=({s})=><span style={{display:"inline-flex",alignItems:"center",fontSize:10,color:"var(--ink4)",gap:4}}><span style={{width:8,height:8,borderRadius:99,background:s?"var(--amber)":"var(--green)",display:"inline-block"}}/>{s?"Saving...":"Synced"}</span>;
-const ETAInp=({value,onChange})=>{const od=isOverdueNow(value);const dt=isDueToday(value);return<input type="datetime-local" value={value||""} onChange={e=>onChange(e.target.value)} style={{padding:"6px 6px",border:`1.5px solid ${od?"var(--red-bd)":dt?"var(--orange-bd)":"var(--ink6)"}`,borderRadius:"var(--rs)",fontSize:11,outline:"none",background:od?"var(--red-bg)":dt?"var(--orange-bg)":"var(--surface)",width:"100%",fontFamily:"inherit",color:od?"var(--red)":dt?"var(--orange)":"var(--ink)"}}/>};
-const TipInp=({value,onChange,ph,bold})=><div title={value||""} style={{position:"relative"}}><input value={value||""} onChange={e=>onChange(e.target.value)} placeholder={ph} style={{width:"100%",padding:"8px 10px",border:"1.5px solid var(--ink6)",borderRadius:"var(--rs)",fontSize:13,outline:"none",background:"var(--surface)",fontWeight:bold?600:400,color:"var(--ink)"}} onFocus={e=>e.target.style.borderColor="var(--accent)"} onBlur={e=>e.target.style.borderColor="var(--ink6)"}/></div>;
+const ETAInp=({value,onChange})=>{const od=isOverdueNow(value);const dt=isDueToday(value);return<input type="datetime-local" value={value||""} onChange={e=>onChange(e.target.value)} style={{padding:"6px",border:"1.5px solid "+(od?"var(--red-bd)":dt?"var(--orange-bd)":"var(--ink6)"),borderRadius:"var(--rs)",fontSize:11,outline:"none",background:od?"var(--red-bg)":dt?"var(--orange-bg)":"var(--surface)",width:"100%",fontFamily:"inherit",color:od?"var(--red)":dt?"var(--orange)":"var(--ink)"}}/>};
+const TipInp=({value,onChange,ph,bold})=><div title={value||""}><input value={value||""} onChange={e=>onChange(e.target.value)} placeholder={ph} style={{width:"100%",padding:"8px 10px",border:"1.5px solid var(--ink6)",borderRadius:"var(--rs)",fontSize:13,outline:"none",background:"var(--surface)",fontWeight:bold?600:400,color:"var(--ink)"}} onFocus={e=>e.target.style.borderColor="var(--accent)"} onBlur={e=>e.target.style.borderColor="var(--ink6)"}/></div>;
 
-/* ═══ CUSTOM PROJECT SELECT  -  viewport-aware, searchable ═══ */
+/* CUSTOM PROJECT DROPDOWN - searchable, viewport-aware
+   FIX: replaced native datalist which had no search and overflowed viewport */
 function ProjSelCustom({value,onChange,projects}){
   const[open,setOpen]=useState(false);
   const[search,setSearch]=useState("");
@@ -137,29 +140,26 @@ function ProjSelCustom({value,onChange,projects}){
     return()=>document.removeEventListener("mousedown",h);
   },[]);
   useEffect(()=>{if(open&&searchRef.current)searchRef.current.focus();},[open]);
-  const handleOpen=()=>{
-    if(!open&&wrapRef.current){
-      const rect=wrapRef.current.getBoundingClientRect();
-      setAbove(window.innerHeight-rect.bottom<260);
-    }
-    setOpen(p=>!p);
-    setSearch("");
+  const openDrop=()=>{
+    if(!open&&wrapRef.current){const rect=wrapRef.current.getBoundingClientRect();setAbove(window.innerHeight-rect.bottom<260);}
+    setOpen(p=>!p);setSearch("");
   };
   const filtered=(projects||[]).filter(p=>!search||(p.name||"").toLowerCase().includes(search.toLowerCase())||(p.client||"").toLowerCase().includes(search.toLowerCase()));
   const choose=name=>{onChange(name);setOpen(false);setSearch("");};
+  const dropPos=above?{bottom:"calc(100% + 3px)"}:{top:"calc(100% + 3px)"};
   return<div ref={wrapRef} style={{position:"relative"}}>
-    <div onClick={handleOpen} style={{width:"100%",padding:"8px 10px",border:`1.5px solid ${open?"var(--accent-border)":"var(--ink6)"}`,borderRadius:"var(--rs)",fontSize:12,fontWeight:value?600:400,cursor:"pointer",background:"var(--surface)",color:value?"var(--ink)":"var(--ink4)",display:"flex",alignItems:"center",justifyContent:"space-between",userSelect:"none",gap:4}}>
+    <div onClick={openDrop} style={{width:"100%",padding:"8px 10px",border:"1.5px solid "+(open?"var(--accent-border)":"var(--ink6)"),borderRadius:"var(--rs)",fontSize:12,fontWeight:value?600:400,cursor:"pointer",background:"var(--surface)",color:value?"var(--ink)":"var(--ink4)",display:"flex",alignItems:"center",justifyContent:"space-between",userSelect:"none",gap:4}}>
       <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",flex:1}}>{value||"Link project..."}</span>
       <span style={{color:"var(--ink4)",fontSize:9,flexShrink:0}}>▼</span>
     </div>
-    {open&&<div style={{position:"absolute",left:0,right:0,...(above?{bottom:"calc(100% + 3px)"}:{top:"calc(100% + 3px)"}),zIndex:600,background:"var(--surface)",border:"1.5px solid var(--accent-border)",borderRadius:"var(--rs)",boxShadow:"0 8px 28px rgba(0,0,0,.18)",display:"flex",flexDirection:"column",maxHeight:230,minWidth:200}}>
+    {open&&<div style={{position:"absolute",left:0,right:0,...dropPos,zIndex:600,background:"var(--surface)",border:"1.5px solid var(--accent-border)",borderRadius:"var(--rs)",boxShadow:"0 8px 28px rgba(0,0,0,.18)",display:"flex",flexDirection:"column",maxHeight:230,minWidth:200}}>
       <div style={{padding:"6px 8px",borderBottom:"1px solid var(--ink6)",flexShrink:0,display:"flex",alignItems:"center",gap:6}}>
         <span style={{fontSize:11,color:"var(--ink4)"}}>🔍</span>
         <input ref={searchRef} value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search project..." style={{flex:1,border:"none",outline:"none",fontSize:12,background:"transparent",color:"var(--ink)"}}/>
       </div>
       <div style={{overflowY:"auto",flex:1}}>
-        {value&&<div className="proj-drop-item" onClick={()=>choose("")} style={{padding:"6px 10px",fontSize:11,color:"var(--red)",cursor:"pointer",borderBottom:"1px solid var(--ink7)"}}>✕ Clear selection</div>}
-        {filtered.map(p=><div key={p.id} className="proj-drop-item" onClick={()=>choose(p.name)} style={{padding:"7px 10px",fontSize:12,cursor:"pointer",background:value===p.name?"var(--accent-light)":"transparent",borderBottom:"1px solid var(--ink7)"}}>
+        {value&&<div className="pdrop-item" onClick={()=>choose("")} style={{color:"var(--red)"}}>Clear</div>}
+        {filtered.map(p=><div key={p.id} className="pdrop-item" onClick={()=>choose(p.name)} style={{background:value===p.name?"var(--accent-light)":"transparent"}}>
           <div style={{fontWeight:600,color:"var(--ink)"}}>{p.name}</div>
           {p.client&&<div style={{fontSize:10,color:"var(--ink4)"}}>{p.client}</div>}
         </div>)}
@@ -169,17 +169,17 @@ function ProjSelCustom({value,onChange,projects}){
   </div>;
 }
 
-/* ═══ NOTIFICATION BELL ═══ */
+/* NOTIFICATION BELL */
 function NotifBell({leads,projects,acts,dismissed,setDismissed}){
   const[open,setOpen]=useState(false);const ref=useRef(null);
   useEffect(()=>{const h=e=>{if(ref.current&&!ref.current.contains(e.target))setOpen(false)};document.addEventListener("mousedown",h);return()=>document.removeEventListener("mousedown",h)},[]);
   const today_s=td();const dis=dismissed||[];
   const notifs=useMemo(()=>{
     const n=[];
-    (leads||[]).forEach(l=>{if(l.nextFollowup&&l.nextFollowup<today_s&&!["Won","Dead"].includes(l.status)){const id=`overdue-${l.id}-${l.nextFollowup}`;n.push({id,type:"overdue",icon:"⚠",color:"var(--red)",bg:"var(--red-bg)",date:l.nextFollowup,title:`Overdue: ${l.client||l.id}`,desc:`Follow-up was due ${fmtD(l.nextFollowup)} (${Math.abs(dBtw(l.nextFollowup,today_s))}d ago)`,link:"leads"})}});
-    (leads||[]).forEach(l=>{if(l.nextFollowup===today_s&&!["Won","Dead"].includes(l.status)){const id=`today-${l.id}`;n.push({id,type:"today",icon:"📅",color:"var(--orange)",bg:"var(--orange-bg)",date:today_s,title:`Due today: ${l.client||l.id}`,desc:`Follow-up scheduled for today`,link:"leads"})}});
-    (projects||[]).forEach(p=>{if(p.status==="Active"&&p.hoursEstimated>0&&(p.hoursUsed/p.hoursEstimated)>=0.9){const id=`hours-${p.id}`;n.push({id,type:"hours",icon:"⏱",color:"var(--amber)",bg:"var(--amber-bg)",date:today_s,title:`Hours alert: ${p.name}`,desc:`${p.hoursUsed}/${p.hoursEstimated}h used (${Math.round(p.hoursUsed/p.hoursEstimated*100)}%)`,link:"projects"})}});
-    (acts||[]).forEach(a=>{if(a.date&&dBtw(a.date,today_s)<=3&&dBtw(a.date,today_s)>=0){const lead=(leads||[]).find(l=>l.id===a.leadId);const id=`act-${a.id}`;n.push({id,type:"activity",icon:"📝",color:"var(--accent2)",bg:"var(--accent-light)",date:a.date,title:`${a.type}: ${lead?lead.client:a.leadId}`,desc:a.summary||"Activity logged",link:"leads"})}});
+    (leads||[]).forEach(l=>{if(l.nextFollowup&&l.nextFollowup<today_s&&!["Won","Dead"].includes(l.status)){const id="overdue-"+l.id+"-"+l.nextFollowup;n.push({id,icon:"⚠",color:"var(--red)",bg:"var(--red-bg)",date:l.nextFollowup,title:"Overdue: "+(l.client||l.id),desc:"Follow-up was due "+fmtD(l.nextFollowup)+" ("+Math.abs(dBtw(l.nextFollowup,today_s))+"d ago)"})}});
+    (leads||[]).forEach(l=>{if(l.nextFollowup===today_s&&!["Won","Dead"].includes(l.status)){const id="today-"+l.id;n.push({id,icon:"📅",color:"var(--orange)",bg:"var(--orange-bg)",date:today_s,title:"Due today: "+(l.client||l.id),desc:"Follow-up scheduled for today"})}});
+    (projects||[]).forEach(p=>{if(p.status==="Active"&&p.hoursEstimated>0&&(p.hoursUsed/p.hoursEstimated)>=0.9){const id="hours-"+p.id;n.push({id,icon:"⏱",color:"var(--amber)",bg:"var(--amber-bg)",date:today_s,title:"Hours alert: "+p.name,desc:p.hoursUsed+"/"+p.hoursEstimated+"h used ("+Math.round(p.hoursUsed/p.hoursEstimated*100)+"%)"})}});
+    (acts||[]).forEach(a=>{if(a.date&&dBtw(a.date,today_s)<=3&&dBtw(a.date,today_s)>=0){const lead=(leads||[]).find(l=>l.id===a.leadId);const id="act-"+a.id;n.push({id,icon:"📝",color:"var(--accent2)",bg:"var(--accent-light)",date:a.date,title:a.type+": "+(lead?lead.client:a.leadId),desc:a.summary||"Activity logged"})}});
     return n.filter(x=>!dis.includes(x.id)).sort((a,b)=>(b.date||"").localeCompare(a.date||""));
   },[leads,projects,acts,dis,today_s]);
   const dismiss=id=>setDismissed(p=>[...(p||[]),id]);
@@ -194,21 +194,21 @@ function NotifBell({leads,projects,acts,dismissed,setDismissed}){
         <span style={{fontWeight:700,fontSize:14}}>Notifications</span>
         {count>0&&<button onClick={clearAll} style={{background:"none",border:"none",color:"var(--accent)",fontSize:11,fontWeight:600,cursor:"pointer"}}>Clear all</button>}
       </div>
-      {notifs.length===0&&<div style={{padding:30,textAlign:"center",color:"var(--ink4)",fontSize:13}}>All clear! No notifications.</div>}
-      {notifs.map(n=><div key={n.id} style={{padding:"12px 16px",borderBottom:"1px solid var(--ink7)",display:"flex",gap:10,alignItems:"flex-start",background:"var(--surface)"}}>
+      {notifs.length===0&&<div style={{padding:30,textAlign:"center",color:"var(--ink4)",fontSize:13}}>All clear!</div>}
+      {notifs.map(n=><div key={n.id} style={{padding:"12px 16px",borderBottom:"1px solid var(--ink7)",display:"flex",gap:10,alignItems:"flex-start"}}>
         <span style={{fontSize:16,flexShrink:0,marginTop:2}}>{n.icon}</span>
         <div style={{flex:1,minWidth:0}}>
           <div style={{fontSize:12,fontWeight:700,color:n.color}}>{n.title}</div>
           <div style={{fontSize:11,color:"var(--ink3)",marginTop:2}}>{n.desc}</div>
           <div style={{fontSize:10,color:"var(--ink4)",marginTop:3}}>{fmtD(n.date)}</div>
         </div>
-        <button onClick={()=>dismiss(n.id)} style={{width:26,height:26,borderRadius:6,border:"1px solid var(--ink6)",background:"var(--surface2)",color:"var(--green)",fontSize:14,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}} title="Dismiss">✓</button>
+        <button onClick={()=>dismiss(n.id)} style={{width:26,height:26,borderRadius:6,border:"1px solid var(--ink6)",background:"var(--surface2)",color:"var(--green)",fontSize:14,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>✓</button>
       </div>)}
     </div>}
   </div>;
 }
 
-/* ═══ PROJECT DETAIL FORM ═══ */
+/* PROJECT DETAIL FORM */
 function ProjForm({p,uP,team,onAdd,pActs,addPA,uPA,dPA,getLinkedOps,actOpen,setActOpen}){
   const projActs=(pActs||[]).filter(a=>a.projectId===p.id).sort((a,b)=>(b.date||"").localeCompare(a.date||""));
   const linkedOps=getLinkedOps(p.name);const isAO=actOpen[p.id];
@@ -248,17 +248,15 @@ function ProjForm({p,uP,team,onAdd,pActs,addPA,uPA,dPA,getLinkedOps,actOpen,setA
         </div>}
         {linkedOps.length>0&&<div>
           <div style={{fontSize:10,fontWeight:700,color:"var(--ink4)",textTransform:"uppercase",marginBottom:6}}>Linked Ops Tasks</div>
-          {linkedOps.map(t=><div key={t.id} style={{display:"grid",gridTemplateColumns:"80px 1fr 100px 100px",gap:8,padding:"5px 0",borderBottom:"1px solid var(--ink7)",fontSize:12,color:"var(--ink3)"}}>
-            <span style={{fontWeight:600}}>{fmtD(t.dayDate)}</span><span>{t.desc1||t.project}</span><span>{t.member}</span><span style={{fontWeight:600}}>{t.status}</span>
-          </div>)}
+          {linkedOps.map(t=><div key={t.id} style={{display:"grid",gridTemplateColumns:"80px 1fr 100px 100px",gap:8,padding:"5px 0",borderBottom:"1px solid var(--ink7)",fontSize:12,color:"var(--ink3)"}}><span style={{fontWeight:600}}>{fmtD(t.dayDate)}</span><span>{t.desc1||t.project}</span><span>{t.member}</span><span style={{fontWeight:600}}>{t.status}</span></div>)}
         </div>}
-        {projActs.length===0&&linkedOps.length===0&&<div style={{padding:16,textAlign:"center",color:"var(--ink4)",fontSize:12}}>No activities yet  -  click "+ Log Activity" above</div>}
+        {projActs.length===0&&linkedOps.length===0&&<div style={{padding:16,textAlign:"center",color:"var(--ink4)",fontSize:12}}>No activities yet</div>}
       </div>}
     </div>
   </div>;
 }
 
-/* ═══ PROJECTS TAB ═══ */
+/* PROJECTS TAB */
 function ProjectsTab({toast,team,onAdd,projects,setProjects,loaded,syncing,pActs,setPActs,days}){
   const[fS,setFS]=useState("");const[q,setQ]=useState("");const[exp,setExp]=useState({});const[actOpen,setActOpen]=useState({});
   const[view,setView]=useState("cards");const[modalId,setModalId]=useState(null);
@@ -273,7 +271,7 @@ function ProjectsTab({toast,team,onAdd,projects,setProjects,loaded,syncing,pActs
   const getLinkedOps=projName=>{if(!days||!projName)return[];const tasks=[];(days||[]).forEach(d=>{d.tasks.forEach(t=>{if(t.linkedProject===projName||t.project===projName){tasks.push({...t,dayDate:d.date,dayName:d.day})}})});return tasks.sort((a,b)=>(b.dayDate||"").localeCompare(a.dayDate||""))};
   const bDS=(e,id)=>{setBoardDrag(id);didDrag.current=true;e.dataTransfer.effectAllowed="move"};
   const bDO=(e,s)=>{e.preventDefault();setBoardOver(s)};
-  const bDr=(e,s)=>{e.preventDefault();setBoardOver(null);if(!boardDrag)return;uP(boardDrag,"status",s);setBoardDrag(null);toast(`Moved to ${s}`)};
+  const bDr=(e,s)=>{e.preventDefault();setBoardOver(null);if(!boardDrag)return;uP(boardDrag,"status",s);setBoardDrag(null);toast("Moved to "+s)};
   const bClick=id=>{if(didDrag.current){didDrag.current=false;return}setModalId(id)};
   const mF=p=>{if(fS&&p.status!==fS)return false;if(q){const s=q.toLowerCase();return[p.name,p.client,p.notes].some(x=>(x||"").toLowerCase().includes(s))}return true};
   const fl=projects.filter(mF);
@@ -302,7 +300,7 @@ function ProjectsTab({toast,team,onAdd,projects,setProjects,loaded,syncing,pActs
               <Badge c={st?st.c:"var(--ink3)"} bg={st?st.bg:"var(--ink7)"} bd={st?st.bd:"var(--ink6)"}>{p.status}</Badge>
               <span style={{fontSize:11,fontWeight:700,padding:"3px 10px",borderRadius:99,background:"var(--ink7)",color:"var(--ink3)"}}>{p.billing}</span>
               <div style={{textAlign:"right",minWidth:70}}><div style={{fontSize:18,fontWeight:800,color:"var(--green)"}}>{p.value?fmtM(p.value):""}</div></div>
-              <div style={{minWidth:80}}><div style={{fontSize:10,color:"var(--ink4)",marginBottom:2}}>Hrs: {p.hoursUsed||0}/{p.hoursEstimated||0}</div><div style={{width:80,height:5,background:"var(--ink7)",borderRadius:3,overflow:"hidden"}}><div style={{width:`${Math.min(hrPct,100)}%`,height:"100%",background:hrPct>90?"var(--red)":hrPct>70?"var(--amber)":"var(--green)",borderRadius:3}}/></div></div>
+              <div style={{minWidth:80}}><div style={{fontSize:10,color:"var(--ink4)",marginBottom:2}}>Hrs: {p.hoursUsed||0}/{p.hoursEstimated||0}</div><div style={{width:80,height:5,background:"var(--ink7)",borderRadius:3,overflow:"hidden"}}><div style={{width:Math.min(hrPct,100)+"%",height:"100%",background:hrPct>90?"var(--red)":hrPct>70?"var(--amber)":"var(--green)",borderRadius:3}}/></div></div>
               <span style={{color:"var(--ink5)",fontSize:10,transform:isE?"rotate(180deg)":"",transition:"transform .2s",display:"inline-block"}}>▼</span>
             </div>
             {isE&&<div style={{borderTop:"1px solid var(--ink7)",padding:20,background:"var(--surface2)"}}>
@@ -314,21 +312,18 @@ function ProjectsTab({toast,team,onAdd,projects,setProjects,loaded,syncing,pActs
       </div>}
       {view==="board"&&<div style={{display:"flex",gap:10,overflowX:"auto",paddingBottom:20}}>
         {["Active","On Hold","Completed","Cancelled"].map(status=>{const s=getPS(status);const items=fl.filter(p=>p.status===status);const tot=items.reduce((a,p)=>a+(+p.value||0),0);const isOv=boardOver===status;
-          return<div key={status} onDragOver={e=>bDO(e,status)} onDragLeave={()=>setBoardOver(null)} onDrop={e=>bDr(e,status)} style={{minWidth:240,flex:"1 0 240px",background:"var(--surface)",borderRadius:"var(--r)",border:`1.5px solid ${isOv?"var(--accent)":"var(--ink6)"}`,overflow:"hidden",transition:"border-color .15s"}}>
-            <div style={{padding:"10px 14px",borderBottom:`2.5px solid ${s?s.bd:"var(--ink6)"}`,background:s?s.bg:"var(--surface2)"}}>
+          return<div key={status} onDragOver={e=>bDO(e,status)} onDragLeave={()=>setBoardOver(null)} onDrop={e=>bDr(e,status)} style={{minWidth:240,flex:"1 0 240px",background:"var(--surface)",borderRadius:"var(--r)",border:"1.5px solid "+(isOv?"var(--accent)":"var(--ink6)"),overflow:"hidden",transition:"border-color .15s"}}>
+            <div style={{padding:"10px 14px",borderBottom:"2.5px solid "+(s?s.bd:"var(--ink6)"),background:s?s.bg:"var(--surface2)"}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}><span style={{fontWeight:800,fontSize:13,color:s?s.c:"var(--ink3)"}}>{status}</span><span style={{background:"var(--navy)",color:"#fff",fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:99}}>{items.length}</span></div>
               {tot>0&&<div style={{fontSize:11,color:"var(--ink3)",marginTop:3,fontWeight:600}}>{fmtM(tot)}</div>}
             </div>
             <div style={{padding:8,display:"flex",flexDirection:"column",gap:8,minHeight:80}}>
               {items.map(p=>{const isDr=boardDrag===p.id;const hrPct=p.hoursEstimated?Math.round((p.hoursUsed/p.hoursEstimated)*100):0;
-                return<div key={p.id} draggable onDragStart={e=>bDS(e,p.id)} onDragEnd={()=>{setBoardDrag(null);setTimeout(()=>{didDrag.current=false},50)}} onClick={()=>bClick(p.id)} className={`board-card${isDr?" dragging":""}`} style={{background:"var(--surface2)",borderRadius:8,padding:"10px 12px",border:"1px solid var(--ink7)"}}>
-                  <div style={{fontWeight:700,fontSize:13,marginBottom:2}}>{p.name||" - "}</div>
+                return<div key={p.id} draggable onDragStart={e=>bDS(e,p.id)} onDragEnd={()=>{setBoardDrag(null);setTimeout(()=>{didDrag.current=false},50)}} onClick={()=>bClick(p.id)} className={"board-card"+(isDr?" dragging":"")} style={{background:"var(--surface2)",borderRadius:8,padding:"10px 12px",border:"1px solid var(--ink7)"}}>
+                  <div style={{fontWeight:700,fontSize:13,marginBottom:2}}>{p.name||"-"}</div>
                   <div style={{fontSize:11,color:"var(--ink3)",marginBottom:6}}>{p.client||""}</div>
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
-                    <span style={{fontSize:14,fontWeight:800,color:"var(--green)"}}>{p.value?fmtM(p.value):""}</span>
-                    <span style={{fontSize:9,fontWeight:700,padding:"2px 7px",borderRadius:99,background:"var(--ink7)",color:"var(--ink3)"}}>{p.billing}</span>
-                  </div>
-                  {p.hoursEstimated>0&&<div><div style={{fontSize:10,color:"var(--ink4)",marginBottom:2}}>Hrs: {p.hoursUsed||0}/{p.hoursEstimated}</div><div style={{width:"100%",height:4,background:"var(--ink7)",borderRadius:2,overflow:"hidden"}}><div style={{width:`${Math.min(hrPct,100)}%`,height:"100%",background:hrPct>90?"var(--red)":hrPct>70?"var(--amber)":"var(--green)",borderRadius:2}}/></div></div>}
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}><span style={{fontSize:14,fontWeight:800,color:"var(--green)"}}>{p.value?fmtM(p.value):""}</span><span style={{fontSize:9,fontWeight:700,padding:"2px 7px",borderRadius:99,background:"var(--ink7)",color:"var(--ink3)"}}>{p.billing}</span></div>
+                  {p.hoursEstimated>0&&<div><div style={{fontSize:10,color:"var(--ink4)",marginBottom:2}}>Hrs: {p.hoursUsed||0}/{p.hoursEstimated}</div><div style={{width:"100%",height:4,background:"var(--ink7)",borderRadius:2,overflow:"hidden"}}><div style={{width:Math.min(hrPct,100)+"%",height:"100%",background:hrPct>90?"var(--red)":hrPct>70?"var(--amber)":"var(--green)",borderRadius:2}}/></div></div>}
                   {p.teamLead&&<div style={{fontSize:10,color:"var(--ink4)",marginTop:4}}>Lead: {p.teamLead}</div>}
                 </div>})}
               {items.length===0&&<div style={{padding:16,textAlign:"center",color:"var(--ink5)",fontSize:11}}>Drop here</div>}
@@ -340,11 +335,7 @@ function ProjectsTab({toast,team,onAdd,projects,setProjects,loaded,syncing,pActs
       return<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.5)",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",padding:20,animation:"fadeIn .2s"}} onClick={e=>{if(e.target===e.currentTarget)setModalId(null)}}>
         <div style={{background:"var(--surface)",borderRadius:14,width:"100%",maxWidth:760,maxHeight:"90vh",overflow:"auto",boxShadow:"0 24px 80px rgba(0,0,0,.3)"}}>
           <div style={{padding:"18px 24px",borderBottom:"1px solid var(--ink6)",display:"flex",justifyContent:"space-between",alignItems:"center",position:"sticky",top:0,background:"var(--surface)",zIndex:1,borderRadius:"14px 14px 0 0"}}>
-            <div style={{display:"flex",alignItems:"center",gap:10}}>
-              <div style={{width:10,height:10,borderRadius:99,background:st?st.c:"var(--ink5)"}}/>
-              <span style={{fontSize:16,fontWeight:800}}>{p.name||"Untitled"}</span>
-              <Badge c={st?st.c:"var(--ink3)"} bg={st?st.bg:"var(--ink7)"} bd={st?st.bd:"var(--ink6)"}>{p.status}</Badge>
-            </div>
+            <div style={{display:"flex",alignItems:"center",gap:10}}><div style={{width:10,height:10,borderRadius:99,background:st?st.c:"var(--ink5)"}}/><span style={{fontSize:16,fontWeight:800}}>{p.name||"Untitled"}</span><Badge c={st?st.c:"var(--ink3)"} bg={st?st.bg:"var(--ink7)"} bd={st?st.bd:"var(--ink6)"}>{p.status}</Badge></div>
             <button onClick={()=>setModalId(null)} style={{width:34,height:34,borderRadius:8,border:"none",background:"var(--ink7)",color:"var(--ink3)",fontSize:18,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
           </div>
           <div style={{padding:"20px 24px"}}>
@@ -360,7 +351,8 @@ function ProjectsTab({toast,team,onAdd,projects,setProjects,loaded,syncing,pActs
   </div>;
 }
 
-/* ═══ DAY SECTION  -  top-level so React never unmounts it on parent re-render ═══ */
+/* DAY SECTION - top-level component so React never unmounts it on parent re-render
+   FIX: was defined inside DailyOps causing remount on every keystroke = focus loss */
 function DaySection({day,open,setOpen,mF,uDay,cF,dupDay,dDay,di,dov,setDOV,onDS,onDE,onDO,onDr,uTask,aTask,dTask,projNames,team,onAdd}){
   const st=gS(day.tasks);
   const isO=open[day.id];
@@ -375,14 +367,14 @@ function DaySection({day,open,setOpen,mF,uDay,cF,dupDay,dDay,di,dov,setDOV,onDS,
         <input type="date" value={day.date||""} onChange={e=>uDay(day.id,"date",e.target.value)} style={{background:"rgba(255,255,255,.1)",border:"1px solid rgba(255,255,255,.15)",borderRadius:"var(--rs)",color:"#fff",fontSize:12,padding:"4px 8px",outline:"none"}}/>
       </div>
       <div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
-        <div style={{width:55,height:5,background:"rgba(255,255,255,.15)",borderRadius:3,overflow:"hidden"}}><div style={{width:`${pct}%`,height:"100%",background:pct>=100?"var(--green)":"var(--accent)",borderRadius:3}}/></div>
+        <div style={{width:55,height:5,background:"rgba(255,255,255,.15)",borderRadius:3,overflow:"hidden"}}><div style={{width:pct+"%",height:"100%",background:pct>=100?"var(--green)":"var(--accent)",borderRadius:3}}/></div>
         <span style={{color:"var(--ink4)",fontSize:10,fontWeight:600}}>{pct}%</span>
         <span style={{color:"var(--ink4)",fontSize:11}}>{st.total}</span>
         {st.hrs>0&&<span style={{color:"var(--cyan-bd)",fontSize:11}}>{st.hrs}h</span>}
         {st.overdue>0&&<span style={{color:"#f87171",fontSize:11,fontWeight:700}}>⚠{st.overdue}</span>}
-        <button onClick={e=>{e.stopPropagation();cF(day.id)}} style={dayBtn}>⤴</button>
-        <button onClick={e=>{e.stopPropagation();dupDay(day.id)}} style={dayBtn}>⧉</button>
-        <button onClick={e=>{e.stopPropagation();dDay(day.id)}} style={{...dayBtn,color:"#f87171"}}>🗑</button>
+        <button onClick={e=>{e.stopPropagation();cF(day.id)}} style={dayBtn} title="Carry forward">⤴</button>
+        <button onClick={e=>{e.stopPropagation();dupDay(day.id)}} style={dayBtn} title="Duplicate">⧉</button>
+        <button onClick={e=>{e.stopPropagation();dDay(day.id)}} style={{...dayBtn,color:"#f87171"}} title="Delete">🗑</button>
       </div>
     </div>
     {isO&&<div style={{overflowX:"auto",padding:"4px 10px 12px"}}>
@@ -393,10 +385,10 @@ function DaySection({day,open,setOpen,mF,uDay,cF,dupDay,dDay,di,dov,setDOV,onDS,
         const isDO=dov&&dov.did===day.id&&dov.tid===t.id;
         const etaOD=isOverdueNow(t.eta)&&t.status!=="Completed";
         const prevProj=i>0?ft[i-1].linkedProject:null;
-        const showProjDivider=t.linkedProject&&t.linkedProject!==prevProj;
+        const showDiv=t.linkedProject&&t.linkedProject!==prevProj;
         return<React.Fragment key={t.id}>
-          {showProjDivider&&<div style={{gridColumn:"1/-1",padding:"6px 8px 2px",fontSize:10,fontWeight:700,color:"var(--accent2)",borderTop:i>0?"2px solid var(--accent-border)":"none",marginTop:i>0?4:0}}>📂 {t.linkedProject}</div>}
-          <div draggable className={`row-hover${isDO?" drag-over":""}`} onDragStart={e=>onDS(e,day.id,t.id)} onDragEnd={onDE} onDragOver={e=>onDO(e,day.id,t.id)} onDragLeave={()=>setDOV(null)} onDrop={e=>onDr(e,day.id,t.id)} style={{display:"grid",gridTemplateColumns:OPS_GC,gap:6,padding:"6px 4px",borderBottom:"1px solid var(--ink7)",alignItems:"center",minWidth:1080,background:etaOD?"var(--red-bg)":i%2?"var(--surface2)":"var(--surface)",transition:"background .1s"}}>
+          {showDiv&&<div style={{gridColumn:"1/-1",padding:"6px 8px 2px",fontSize:10,fontWeight:700,color:"var(--accent2)",borderTop:i>0?"2px solid var(--accent-border)":"none",marginTop:i>0?4:0}}>📂 {t.linkedProject}</div>}
+          <div draggable className={"row-hover"+(isDO?" drag-over":"")} onDragStart={e=>onDS(e,day.id,t.id)} onDragEnd={onDE} onDragOver={e=>onDO(e,day.id,t.id)} onDragLeave={()=>setDOV(null)} onDrop={e=>onDr(e,day.id,t.id)} style={{display:"grid",gridTemplateColumns:OPS_GC,gap:6,padding:"6px 4px",borderBottom:"1px solid var(--ink7)",alignItems:"center",minWidth:1080,background:etaOD?"var(--red-bg)":i%2?"var(--surface2)":"var(--surface)",transition:"background .1s"}}>
             <div className="drag-handle">⠿</div>
             <TipInp value={t.project} onChange={v=>uTask(day.id,t.id,"project",v)} ph="Project & Client..." bold/>
             <ProjSelCustom value={t.linkedProject} onChange={v=>uTask(day.id,t.id,"linkedProject",v)} projects={projNames}/>
@@ -405,19 +397,19 @@ function DaySection({day,open,setOpen,mF,uDay,cF,dupDay,dDay,di,dov,setDOV,onDS,
             <TipInp value={t.desc2} onChange={v=>uTask(day.id,t.id,"desc2",v)} ph="Notes..."/>
             <Sel value={t.status} onChange={v=>uTask(day.id,t.id,"status",v)} options={OPS_ST} ph="Status..." sty={OPS_ST}/>
             <ETAInp value={t.eta} onChange={v=>uTask(day.id,t.id,"eta",v)}/>
-            <span style={{fontSize:9,color:"var(--ink4)",padding:"0 2px",lineHeight:1.3}} title={t.createdAt||""}>{t.createdAt?fmtDT(t.createdAt):" - "}</span>
+            <span style={{fontSize:9,color:"var(--ink4)",padding:"0 2px",lineHeight:1.3}} title={t.createdAt||""}>{t.createdAt?fmtDT(t.createdAt):"-"}</span>
             <Inp value={t.time} onChange={v=>uTask(day.id,t.id,"time",v)} ph="0" small mono/>
             <Del onClick={()=>dTask(day.id,t.id)}/>
           </div>
         </React.Fragment>;
       })}
-      {ft.length===0&&<div style={{padding:20,textAlign:"center",color:"var(--ink4)",fontSize:13}}>No tasks match</div>}
+      {ft.length===0&&<div style={{padding:20,textAlign:"center",color:"var(--ink4)",fontSize:13}}>No tasks match filters</div>}
       <button onClick={()=>aTask(day.id)} style={addTBtn} onMouseEnter={e=>{e.currentTarget.style.borderColor="var(--accent)";e.currentTarget.style.background="var(--accent-light)"}} onMouseLeave={e=>{e.currentTarget.style.borderColor="var(--ink6)";e.currentTarget.style.background="var(--surface2)"}}>+ Add Task</button>
     </div>}
   </section>;
 }
 
-/* ═══ BOARD VIEW  -  top-level for same reason ═══ */
+/* OPS BOARD VIEW - top-level for same reason */
 function OpsBoard({days,recentDays,boardDay,setBoardDay,mF}){
   const availDays=recentDays.filter(d=>d.tasks.length>0);
   const selDay=boardDay?days.find(d=>d.id===boardDay):availDays[0];
@@ -427,7 +419,7 @@ function OpsBoard({days,recentDays,boardDay,setBoardDay,mF}){
     <div style={{marginBottom:14,display:"flex",alignItems:"center",gap:10}}>
       <span style={{fontSize:12,fontWeight:700,color:"var(--ink2)"}}>Showing:</span>
       <select value={selDay.id} onChange={e=>setBoardDay(e.target.value)} style={{...fltSel,fontWeight:700,fontSize:13}}>
-        {days.map(d=><option key={d.id} value={d.id}>{d.day}  -  {fmtD(d.date)} ({d.tasks.length} tasks)</option>)}
+        {days.map(d=><option key={d.id} value={d.id}>{d.day} - {fmtD(d.date)} ({d.tasks.length} tasks)</option>)}
       </select>
     </div>
     <div style={{display:"flex",gap:10,overflowX:"auto",paddingBottom:20}}>
@@ -435,15 +427,15 @@ function OpsBoard({days,recentDays,boardDay,setBoardDay,mF}){
         const items=dayTasks.filter(t=>t.status===st.v);
         const byProj={};items.forEach(t=>{const k=t.linkedProject||"Unlinked";if(!byProj[k])byProj[k]=[];byProj[k].push(t)});
         return<div key={st.v} style={{minWidth:230,flex:"1 0 230px",background:"var(--surface)",borderRadius:"var(--r)",border:"1px solid var(--ink6)",overflow:"hidden"}}>
-          <div style={{padding:"10px 14px",borderBottom:`2.5px solid ${st.bd}`,background:st.bg}}>
+          <div style={{padding:"10px 14px",borderBottom:"2.5px solid "+st.bd,background:st.bg}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}><span style={{fontWeight:800,fontSize:13,color:st.c}}>{st.v}</span><span style={{background:"var(--navy)",color:"#fff",fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:99}}>{items.length}</span></div>
           </div>
           <div style={{padding:8,display:"flex",flexDirection:"column",gap:4,minHeight:60}}>
             {Object.entries(byProj).map(([proj,tasks])=><div key={proj}>
               {proj!=="Unlinked"&&<div style={{fontSize:9,fontWeight:700,color:"var(--accent2)",padding:"4px 6px 2px",textTransform:"uppercase"}}>📂 {proj}</div>}
               {tasks.map(t=>{const etaOD=isOverdueNow(t.eta)&&t.status!=="Completed";
-                return<div key={t.id} title={`${t.desc1||""}\n${t.desc2||""}`} style={{background:etaOD?"var(--red-bg)":"var(--surface2)",borderRadius:6,padding:"8px 10px",border:`1px solid ${etaOD?"var(--red-bd)":"var(--ink7)"}`,marginBottom:4}}>
-                  <div style={{fontWeight:600,fontSize:12,marginBottom:2}}>{t.project||" - "}</div>
+                return<div key={t.id} title={(t.desc1||"")+"\n"+(t.desc2||"")} style={{background:etaOD?"var(--red-bg)":"var(--surface2)",borderRadius:6,padding:"8px 10px",border:"1px solid "+(etaOD?"var(--red-bd)":"var(--ink7)"),marginBottom:4}}>
+                  <div style={{fontWeight:600,fontSize:12,marginBottom:2}}>{t.project||"-"}</div>
                   <div style={{fontSize:11,color:"var(--ink3)",marginBottom:3}}>{(t.desc1||"").slice(0,50)}{(t.desc1||"").length>50?"...":""}</div>
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                     <span style={{fontSize:10,color:"var(--ink4)"}}>{t.member||""}</span>
@@ -461,7 +453,7 @@ function OpsBoard({days,recentDays,boardDay,setBoardDay,mF}){
   </div>;
 }
 
-/* ═══ DAILY OPS ═══ */
+/* DAILY OPS */
 function DailyOps({toast,team,onAdd,days,setDays,loaded,syncing,projects,onBackup}){
   const[open,setOpen]=useState({});
   const[fM,setFM]=useState("");
@@ -471,37 +463,28 @@ function DailyOps({toast,team,onAdd,days,setDays,loaded,syncing,projects,onBacku
   const[dov,setDOV]=useState(null);
   const[opsView,setOpsView]=useState("list");
   const[archOpen,setArchOpen]=useState(false);
-  /* FIX: boardDay useState is above the early return — Rules of Hooks */
   const[boardDay,setBoardDay]=useState(null);
-
+  /* All useState calls above - before any early return. Rules of Hooks fix. */
   if(!loaded||!days)return<div style={{padding:40,textAlign:"center",color:"var(--ink4)"}}>Loading...</div>;
 
-  /* Day CRUD */
   const aDay=()=>{const n=new Date();setDays(p=>[{id:uid(),day:n.toLocaleDateString("en-US",{weekday:"long"}),date:n.toISOString().slice(0,10),tasks:[bTask()]},...p]);toast("Day created")};
   const uDay=(did,f,v)=>setDays(p=>p.map(d=>d.id===did?{...d,[f]:v}:d));
-  const dDay=did=>{if(confirm("Delete?")){setDays(p=>p.filter(d=>d.id!==did));toast("Deleted")}};
-  const cF=did=>{const s=days.find(d=>d.id===did);if(!s)return;const n=new Date();const pend=s.tasks.filter(t=>t.status!=="Completed");if(!pend.length){toast("No pending");return}setDays(p=>[{id:uid(),day:n.toLocaleDateString("en-US",{weekday:"long"}),date:n.toISOString().slice(0,10),tasks:pend.map(t=>({...t,id:uid(),status:"Carry Forward",time:"",eta:t.eta}))},...p]);toast(`${pend.length} carried forward`)};
-  const dupDay=did=>{const s=days.find(d=>d.id===did);if(!s)return;if(onBackup)onBackup();setDays(p=>[{...s,id:uid(),tasks:s.tasks.map(t=>({...t,id:uid()}))},...p]);toast("Duplicated — backup saved ↓")};
-
-  /* Task CRUD */
+  const dDay=did=>{if(confirm("Delete day?")){setDays(p=>p.filter(d=>d.id!==did));toast("Deleted")}};
+  const cF=did=>{const s=days.find(d=>d.id===did);if(!s)return;const n=new Date();const pend=s.tasks.filter(t=>t.status!=="Completed");if(!pend.length){toast("No pending");return}setDays(p=>[{id:uid(),day:n.toLocaleDateString("en-US",{weekday:"long"}),date:n.toISOString().slice(0,10),tasks:pend.map(t=>({...t,id:uid(),status:"Carry Forward",time:"",eta:t.eta}))},...p]);toast(pend.length+" tasks carried forward")};
+  const dupDay=did=>{const s=days.find(d=>d.id===did);if(!s)return;if(onBackup)onBackup();setDays(p=>[{...s,id:uid(),tasks:s.tasks.map(t=>({...t,id:uid()}))},...p]);toast("Duplicated - backup downloaded")};
   const aTask=did=>{setDays(p=>p.map(d=>d.id===did?{...d,tasks:[...d.tasks,bTask()]}:d));toast("Task added")};
   const uTask=(did,tid,f,v)=>setDays(p=>p.map(d=>d.id===did?{...d,tasks:d.tasks.map(t=>t.id===tid?{...t,[f]:v}:t)}:d));
   const dTask=(did,tid)=>setDays(p=>p.map(d=>d.id===did?{...d,tasks:d.tasks.filter(t=>t.id!==tid)}:d));
-
-  /* D&D */
   const onDS=(e,did,tid)=>{setDI({did,tid});e.dataTransfer.effectAllowed="move";e.currentTarget.classList.add("dragging")};
   const onDE=e=>{e.currentTarget.classList.remove("dragging");setDI(null);setDOV(null)};
   const onDO=(e,did,tid)=>{e.preventDefault();if(di&&di.did===did&&di.tid!==tid)setDOV({did,tid})};
   const onDr=(e,did,tid)=>{e.preventDefault();setDOV(null);if(!di||di.did!==did)return;setDays(p=>p.map(d=>{if(d.id!==did)return d;const ts=[...d.tasks];const fi=ts.findIndex(t=>t.id===di.tid);const ti=ts.findIndex(t=>t.id===tid);if(fi<0||ti<0||fi===ti)return d;const[m]=ts.splice(fi,1);ts.splice(ti,0,m);return{...d,tasks:ts}}));setDI(null);toast("Reordered")};
-
   const mF=t=>{if(fM&&t.member!==fM)return false;if(fS&&t.status!==fS)return false;if(q){const s=q.toLowerCase();return[t.project,t.linkedProject,t.desc1,t.desc2,t.member].some(x=>(x||"").toLowerCase().includes(s))}return true};
   const gs=gS(days.flatMap(d=>d.tasks));
   const projNames=(projects||[]).filter(p=>p.status==="Active");
   const sortedDays=[...days].sort((a,b)=>(b.date||"").localeCompare(a.date||""));
   const recentDays=sortedDays.slice(0,7);
   const archiveDays=sortedDays.slice(7);
-
-  /* Shared props bundle for DaySection */
   const dayProps={open,setOpen,mF,uDay,cF,dupDay,dDay,di,dov,setDOV,onDS,onDE,onDO,onDr,uTask,aTask,dTask,projNames,team,onAdd};
 
   return<div style={{animation:"fadeIn .3s"}}>
@@ -526,7 +509,7 @@ function DailyOps({toast,team,onAdd,days,setDays,loaded,syncing,projects,onBacku
           {archiveDays.length>0&&<div>
             <button onClick={()=>setArchOpen(p=>!p)} style={{display:"flex",alignItems:"center",gap:8,padding:"10px 16px",background:"var(--surface3)",border:"1px solid var(--ink6)",borderRadius:"var(--r)",cursor:"pointer",width:"100%",fontSize:13,fontWeight:600,color:"var(--ink3)"}}>
               <span style={{fontSize:10,transform:archOpen?"rotate(90deg)":"",transition:"transform .2s",display:"inline-block"}}>▶</span>
-              📦 Archive ({archiveDays.length} older days)
+              Archive ({archiveDays.length} older days)
             </button>
             {archOpen&&<div style={{display:"flex",flexDirection:"column",gap:10,marginTop:10}}>
               {archiveDays.map(day=><DaySection key={day.id} day={day} {...dayProps}/>)}
@@ -537,13 +520,13 @@ function DailyOps({toast,team,onAdd,days,setDays,loaded,syncing,projects,onBacku
   </div>;
 }
 
-/* ═══ LEAD DETAIL FORM ═══ */
+/* LEAD FORM */
 function LeadForm({l,uL,acts,aA,uA,dA}){
   const isOD=l.nextFollowup&&l.nextFollowup<td()&&!["Won","Dead"].includes(l.status);
   const isDT=l.nextFollowup===td();
   const lA=(acts||[]).filter(a=>a.leadId===l.id).sort((a,b)=>(b.date||"").localeCompare(a.date||""));
   return<div>
-    {isOD&&<div style={{padding:"8px 14px",borderRadius:"var(--rs)",background:"var(--red-bg)",border:"1px solid var(--red-bd)",color:"var(--red)",fontSize:12,fontWeight:700,marginBottom:16}}>⚠ Follow-up overdue  -  {Math.abs(dBtw(l.nextFollowup,td()))}d</div>}
+    {isOD&&<div style={{padding:"8px 14px",borderRadius:"var(--rs)",background:"var(--red-bg)",border:"1px solid var(--red-bd)",color:"var(--red)",fontSize:12,fontWeight:700,marginBottom:16}}>⚠ Follow-up overdue - {Math.abs(dBtw(l.nextFollowup,td()))}d ago</div>}
     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:14,marginBottom:16}}>
       <div><div style={FL}>Client</div><Inp value={l.client} onChange={v=>uL(l.id,"client",v)} ph="Username..." bold/></div>
       <div><div style={FL}>Job</div><Inp value={l.job} onChange={v=>uL(l.id,"job",v)} ph="Title..."/></div>
@@ -560,18 +543,175 @@ function LeadForm({l,uL,acts,aA,uA,dA}){
       <div><div style={FL}>First Contact</div><DtInp value={l.firstContact} onChange={v=>uL(l.id,"firstContact",v)}/></div>
       <div><div style={FL}>Last Contact</div><DtInp value={l.lastContact} onChange={v=>uL(l.id,"lastContact",v)}/></div>
       <div><div style={FL}>Next Follow-up</div><DtInp value={l.nextFollowup} onChange={v=>uL(l.id,"nextFollowup",v)} warn={isOD?"overdue":isDT?"today":""}/></div>
-      <div><div style={FL}>Proposal?</div><button onClick={()=>uL(l.id,"proposalSent",!l.proposalSent)} style={{width:"100%",padding:"8px",borderRadius:"var(--rs)",border:`1.5px solid ${l.proposalSent?"var(--green-bd)":"var(--ink6)"}`,background:l.proposalSent?"var(--green-bg)":"var(--surface)",color:l.proposalSent?"var(--green)":"var(--ink4)",fontSize:13,fontWeight:700,cursor:"pointer"}}>{l.proposalSent?"✓ Yes":"No"}</button></div>
+      <div><div style={FL}>Proposal?</div><button onClick={()=>uL(l.id,"proposalSent",!l.proposalSent)} style={{width:"100%",padding:"8px",borderRadius:"var(--rs)",border:"1.5px solid "+(l.proposalSent?"var(--green-bd)":"var(--ink6)"),background:l.proposalSent?"var(--green-bg)":"var(--surface)",color:l.proposalSent?"var(--green)":"var(--ink4)",fontSize:13,fontWeight:700,cursor:"pointer"}}>{l.proposalSent?"Yes":"No"}</button></div>
     </div>
     <div style={{marginBottom:16}}><div style={FL}>Notes</div><textarea value={l.notes||""} onChange={e=>uL(l.id,"notes",e.target.value)} rows={2} style={{width:"100%",padding:"10px 12px",border:"1.5px solid var(--ink6)",borderRadius:"var(--rs)",fontSize:13,outline:"none",resize:"vertical",fontFamily:"inherit",background:"var(--surface2)"}}/></div>
     <div style={{marginBottom:14}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}><span style={{fontWeight:700,fontSize:13}}>Activities ({lA.length})</span><button onClick={()=>aA(l.id)} style={{padding:"5px 12px",borderRadius:"var(--rs)",border:"1.5px solid var(--accent-border)",background:"var(--accent-light)",color:"var(--accent2)",fontSize:11,fontWeight:700,cursor:"pointer"}}>+ Log</button></div>
       {lA.map(a=><div key={a.id} style={{display:"grid",gridTemplateColumns:"100px 140px 1fr 1fr 30px",gap:8,padding:"5px 0",borderBottom:"1px solid var(--ink7)",alignItems:"center"}}><DtInp value={a.date} onChange={v=>uA(a.id,"date",v)}/><Sel value={a.type} onChange={v=>uA(a.id,"type",v)} options={ACT_TYPES} ph="Type..."/><Inp value={a.summary} onChange={v=>uA(a.id,"summary",v)} ph="Summary..."/><Inp value={a.next} onChange={v=>uA(a.id,"next",v)} ph="Next..."/><Del onClick={()=>dA(a.id)}/></div>)}
-      {lA.length===0&&<div style={{padding:12,textAlign:"center",color:"var(--ink4)",fontSize:12,background:"var(--ink7)",borderRadius:"var(--rs)"}}>No activities</div>}
+      {lA.length===0&&<div style={{padding:12,textAlign:"center",color:"var(--ink4)",fontSize:12,background:"var(--ink7)",borderRadius:"var(--rs)"}}>No activities yet</div>}
     </div>
   </div>;
 }
 
-/* ═══ LEADS TAB ═══ */
+/* LEADS TAB */
 function LeadsTab({toast,leads,setLeads,acts,setActs,loaded,syncing,actsSyncing,meta,setMeta,projects,setProjects}){
   const[view,setView]=useState("cards");const[fS,setFS]=useState("");const[fP,setFP]=useState("");const[fT,setFT]=useState("");const[q,setQ]=useState("");const[exp,setExp]=useState({});
-  const[memoOpen,setMemoOpen]=useSt
+  const[memoOpen,setMemoOpen]=useState(false);const[modalId,setModalId]=useState(null);
+  const[di,setDI]=useState(null);const[dov,setDOV]=useState(null);
+  const[boardDrag,setBoardDrag]=useState(null);const[boardOver,setBoardOver]=useState(null);const didDrag=useRef(false);
+  if(!loaded||!leads||!acts)return<div style={{padding:40,textAlign:"center",color:"var(--ink4)"}}>Loading...</div>;
+  const wonToProject=lead=>{if(!projects||!setProjects)return;if((projects||[]).some(p=>p.fromLeadId===lead.id)){toast("Project exists");return}setProjects(p=>[...p,{id:uid(),name:lead.job||lead.client||"Won Lead",client:lead.client||"",billing:"Milestone",value:lead.budget||0,hoursEstimated:0,hoursUsed:0,status:"Active",startDate:td(),dueDate:"",teamLead:"",trelloLink:"",niftyLink:"",notes:"From lead "+lead.id,fromLeadId:lead.id}]);toast("Project created!")};
+  const uL=(id,f,v)=>{if(f==="status"&&v==="Won"){const lead=leads.find(l=>l.id===id);if(lead&&lead.status!=="Won")setTimeout(()=>wonToProject({...lead,status:v}),100)}setLeads(p=>p.map(l=>l.id===id?{...l,[f]:v}:l))};
+  const aL=()=>{const n=leads.length+1;setLeads(p=>[...p,{id:"L-"+String(n).padStart(3,"0"),client:"",job:"",source:"",type:"",budget:0,firstContact:td(),lastContact:td(),nextFollowup:"",status:"New",priority:"Medium",proposalSent:false,leadType:"New Lead",notes:""}]);toast("Lead added")};
+  const dL=id=>{if(confirm("Delete lead?")){setLeads(p=>p.filter(l=>l.id!==id));setActs(p=>p.filter(a=>a.leadId!==id));toast("Deleted")}};
+  const aA=lid=>{setActs(p=>[{id:uid(),date:td(),leadId:lid||"",type:"Note",summary:"",next:""},...(p||[])]);toast("Activity logged")};
+  const uA=(id,f,v)=>setActs(p=>(p||[]).map(a=>a.id===id?{...a,[f]:v}:a));
+  const dA=id=>setActs(p=>(p||[]).filter(a=>a.id!==id));
+  const cDS=(e,id)=>{setDI(id);e.dataTransfer.effectAllowed="move";e.currentTarget.classList.add("dragging")};
+  const cDE=e=>{e.currentTarget.classList.remove("dragging");setDI(null);setDOV(null)};
+  const cDO=(e,id)=>{e.preventDefault();if(di&&di!==id)setDOV(id)};
+  const cDr=(e,id)=>{e.preventDefault();setDOV(null);if(!di||di===id)return;setLeads(p=>{const a=[...p];const fi=a.findIndex(l=>l.id===di);const ti=a.findIndex(l=>l.id===id);if(fi<0||ti<0)return p;const[m]=a.splice(fi,1);a.splice(ti,0,m);return a});setDI(null);toast("Reordered")};
+  const bDS=(e,id)=>{setBoardDrag(id);didDrag.current=true;e.dataTransfer.effectAllowed="move"};
+  const bDO=(e,s)=>{e.preventDefault();setBoardOver(s)};
+  const bDr=(e,s)=>{e.preventDefault();setBoardOver(null);if(!boardDrag)return;uL(boardDrag,"status",s);setBoardDrag(null);toast("Moved to "+s)};
+  const bClick=id=>{if(didDrag.current){didDrag.current=false;return}setModalId(id)};
+  const mF=l=>{if(fS&&l.status!==fS)return false;if(fP&&l.priority!==fP)return false;if(fT&&(l.leadType||"New Lead")!==fT)return false;if(q){const s=q.toLowerCase();return[l.client,l.job,l.notes,l.id].some(x=>(x||"").toLowerCase().includes(s))}return true};
+  const fl=leads.filter(mF);
+  const active=fl.filter(l=>!["Won","Dead"].includes(l.status));
+  const pipeline=active.reduce((s,l)=>s+(+l.budget||0),0);
+  const weighted=active.reduce((s,l)=>{const x=getLS(l.status);return s+(+l.budget||0)*(x?x.p/100:0)},0);
+  const overdue=fl.filter(l=>l.nextFollowup&&l.nextFollowup<td()&&!["Won","Dead"].includes(l.status));
+  const m=meta||{};const uM=(f,v)=>setMeta(p=>({...(p||{}),[f]:v}));
+  return<div style={{animation:"fadeIn .3s"}}>
+    <div style={{padding:"16px 20px 0",background:"var(--surface)"}}>
+      <div style={{display:"flex",alignItems:"center",gap:14,flexWrap:"wrap",marginBottom:12}}><span style={{fontSize:13,fontWeight:700,color:"var(--ink2)"}}>Last updated:</span><input type="date" value={m.lastUpdated||""} onChange={e=>uM("lastUpdated",e.target.value)} style={{padding:"8px 12px",border:"1.5px solid var(--ink6)",borderRadius:"var(--rs)",fontSize:13,outline:"none",background:"var(--surface2)",fontFamily:"inherit",color:"var(--ink)"}}/>{m.lastUpdated&&<span style={{fontSize:12,color:"var(--ink3)"}}>{fmtD(m.lastUpdated)}</span>}</div>
+      <div style={{marginBottom:14}}><div onClick={()=>setMemoOpen(p=>!p)} style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",marginBottom:memoOpen?8:0}}><span style={{fontSize:10,color:"var(--ink4)",transform:memoOpen?"rotate(90deg)":"",transition:"transform .2s",display:"inline-block"}}>▶</span><span style={{fontSize:13,fontWeight:700,color:"var(--ink2)"}}>Team Memo</span>{!memoOpen&&m.memo&&<span style={{fontSize:11,color:"var(--ink4)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:400}}>{m.memo.slice(0,80)}{m.memo.length>80?"...":""}</span>}</div>{memoOpen&&<textarea value={m.memo||""} onChange={e=>uM("memo",e.target.value)} placeholder="Shared team notes..." rows={4} style={{width:"100%",padding:"12px 14px",border:"1.5px solid var(--ink6)",borderRadius:"var(--rs)",fontSize:13,outline:"none",resize:"vertical",fontFamily:"inherit",background:"var(--surface2)",lineHeight:1.5}}/>}</div>
+    </div>
+    <div style={{padding:"0 20px 16px",background:"var(--surface)",borderBottom:"1px solid var(--ink6)"}}>
+      <div style={{display:"flex",gap:10,flexWrap:"wrap",marginBottom:14}}>
+        <KPI label="Active" val={active.length} c="var(--accent2)" bg="var(--accent-light)"/><KPI label="Hot" val={fl.filter(l=>l.status==="Hot").length} c="var(--red)" bg="var(--red-bg)" icon="🔥"/><KPI label="Pipeline" val={fmtM(pipeline)} c="var(--green)" bg="var(--green-bg)"/><KPI label="Weighted" val={fmtM(Math.round(weighted))} c="var(--cyan)" bg="var(--cyan-bg)"/><KPI label="Won" val={fl.filter(l=>l.status==="Won").length} c="var(--green)" bg="var(--green-bg)" icon="🏆"/><KPI label="Overdue" val={overdue.length} c={overdue.length?"var(--red)":"var(--green)"} bg={overdue.length?"var(--red-bg)":"var(--green-bg)"} icon={overdue.length?"⚠":"✓"}/>
+      </div>
+      <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
+        <div style={{display:"flex",background:"var(--surface3)",borderRadius:8,padding:3,gap:2}}>{[["cards","📋 Cards"],["board","◫ Board"],["activity","📝 Activity"]].map(([k,l])=><button key={k} onClick={()=>setView(k)} style={{padding:"7px 14px",borderRadius:6,border:"none",fontSize:12,fontWeight:600,cursor:"pointer",background:view===k?"var(--surface)":"transparent",color:view===k?"var(--ink)":"var(--ink3)",boxShadow:view===k?"0 1px 3px rgba(0,0,0,.06)":"none"}}>{l}</button>)}</div>
+        <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search..." style={{padding:"8px 14px",borderRadius:"var(--r)",border:"1.5px solid var(--ink6)",fontSize:13,width:140,outline:"none",background:"var(--surface2)"}}/>
+        <select value={fS} onChange={e=>setFS(e.target.value)} style={fltSel}><option value="">All Status</option>{LEAD_ST.map(s=><option key={s.v}>{s.v}</option>)}</select>
+        <select value={fP} onChange={e=>setFP(e.target.value)} style={fltSel}><option value="">All Priority</option>{PRIOS.map(p=><option key={p}>{p}</option>)}</select>
+        <select value={fT} onChange={e=>setFT(e.target.value)} style={fltSel}><option value="">All Types</option><option value="New Lead">New Leads</option><option value="Existing Client">Existing Clients</option></select>
+        <div style={{flex:1}}/><Sync s={syncing||actsSyncing}/><button onClick={aL} style={btnP}>+ New Lead</button>
+      </div>
+    </div>
+    <div style={{padding:"16px 20px 60px"}}>
+      {view==="cards"&&<div style={{display:"flex",flexDirection:"column",gap:10}}>
+        {fl.map((l,i)=>{const st=getLS(l.status);const isE=exp[l.id];const isDO=dov===l.id;const aging=dBtw(l.firstContact,td());const isOD=l.nextFollowup&&l.nextFollowup<td()&&!["Won","Dead"].includes(l.status);const lt=l.leadType||"New Lead";
+          return<div key={l.id} draggable onDragStart={e=>cDS(e,l.id)} onDragEnd={cDE} onDragOver={e=>cDO(e,l.id)} onDragLeave={()=>setDOV(null)} onDrop={e=>cDr(e,l.id)} className={isDO?"drag-over":""} style={{background:"var(--surface)",borderRadius:"var(--r)",border:"1.5px solid "+(isOD?"var(--red-bd)":"var(--ink6)"),overflow:"hidden"}}>
+            <div style={{display:"flex",alignItems:"center",gap:14,padding:"14px 20px",cursor:"pointer",flexWrap:"wrap"}} onClick={()=>setExp(p=>({...p,[l.id]:!p[l.id]}))}>
+              <div className="drag-handle">⠿</div>
+              <div style={{width:10,height:10,borderRadius:99,background:st?st.c:"var(--ink5)",flexShrink:0}}/><span style={{fontSize:11,fontWeight:700,color:"var(--ink4)",fontFamily:"monospace",minWidth:45}}>{l.id}</span>
+              <div style={{flex:"2 1 180px",minWidth:0}}><div style={{fontSize:15,fontWeight:700,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{l.client||"Untitled"}</div><div style={{fontSize:12,color:"var(--ink3)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{l.job||""}</div></div>
+              <span style={{fontSize:9,fontWeight:700,padding:"2px 8px",borderRadius:99,background:lt==="Existing Client"?"var(--purple-bg)":"var(--cyan-bg)",color:lt==="Existing Client"?"var(--purple)":"var(--cyan)",whiteSpace:"nowrap"}}>{lt==="Existing Client"?"EXISTING":"NEW"}</span>
+              <div style={{textAlign:"right",minWidth:60}}><div style={{fontSize:17,fontWeight:800,color:"var(--green)"}}>{l.budget?fmtM(l.budget):""}</div></div>
+              <Badge c={st?st.c:"var(--ink3)"} bg={st?st.bg:"var(--ink7)"} bd={st?st.bd:"var(--ink6)"}>{l.status||"-"}</Badge>
+              <span style={{fontSize:11,fontWeight:700,padding:"3px 10px",borderRadius:99,background:l.priority==="High"?"var(--red-bg)":l.priority==="Medium"?"var(--amber-bg)":"var(--ink7)",color:l.priority==="High"?"var(--red)":l.priority==="Medium"?"var(--amber)":"var(--ink3)"}}>{l.priority}</span>
+              <div style={{textAlign:"center",minWidth:45}}><div style={{fontSize:14,fontWeight:800,color:aging>14?"var(--red)":aging>7?"var(--amber)":"var(--green)"}}>{aging}d</div></div>
+              <span style={{color:"var(--ink5)",fontSize:10,transform:isE?"rotate(180deg)":"",transition:"transform .2s",display:"inline-block"}}>▼</span>
+            </div>
+            {isOD&&!isE&&<div style={{padding:"5px 20px",background:"var(--red-bg)",fontSize:11,fontWeight:700,color:"var(--red)"}}>⚠ Follow-up overdue</div>}
+            {isE&&<div style={{borderTop:"1px solid var(--ink7)",padding:20,background:"var(--surface2)"}}>
+              <LeadForm l={l} uL={uL} acts={acts} aA={aA} uA={uA} dA={dA}/>
+              <div style={{display:"flex",justifyContent:"flex-end"}}><button onClick={()=>dL(l.id)} style={{padding:"6px 16px",borderRadius:"var(--rs)",border:"1.5px solid var(--red-bd)",background:"var(--red-bg)",color:"var(--red)",fontSize:12,fontWeight:700,cursor:"pointer"}}>Delete</button></div>
+            </div>}
+          </div>})}
+        {fl.length===0&&<div style={{padding:40,textAlign:"center",color:"var(--ink4)"}}>No leads match</div>}
+      </div>}
+      {view==="board"&&<div style={{display:"flex",gap:10,overflowX:"auto",paddingBottom:20}}>
+        {["New","Proposal Sent","In Discussion","Hot","Warm","Cold","Won","Dead"].map(status=>{const s=getLS(status);const items=fl.filter(l=>l.status===status);const tot=items.reduce((a,l)=>a+(+l.budget||0),0);const isOv=boardOver===status;
+          return<div key={status} onDragOver={e=>bDO(e,status)} onDragLeave={()=>setBoardOver(null)} onDrop={e=>bDr(e,status)} style={{minWidth:210,flex:"1 0 210px",background:"var(--surface)",borderRadius:"var(--r)",border:"1.5px solid "+(isOv?"var(--accent)":"var(--ink6)"),overflow:"hidden"}}>
+            <div style={{padding:"10px 14px",borderBottom:"2.5px solid "+(s?s.bd:"var(--ink6)"),background:s?s.bg:"var(--surface2)"}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}><span style={{fontWeight:800,fontSize:13,color:s?s.c:"var(--ink3)"}}>{status}</span><span style={{background:"var(--navy)",color:"#fff",fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:99}}>{items.length}</span></div>{tot>0&&<div style={{fontSize:11,color:"var(--ink3)",marginTop:3,fontWeight:600}}>{fmtM(tot)}</div>}</div>
+            <div style={{padding:8,display:"flex",flexDirection:"column",gap:8,minHeight:80}}>
+              {items.map(l=>{const isOD=l.nextFollowup&&l.nextFollowup<td()&&!["Won","Dead"].includes(l.status);const isDr=boardDrag===l.id;const lt=l.leadType||"New Lead";
+                return<div key={l.id} draggable onDragStart={e=>bDS(e,l.id)} onDragEnd={()=>{setBoardDrag(null);setTimeout(()=>{didDrag.current=false},50)}} onClick={()=>bClick(l.id)} className={"board-card"+(isDr?" dragging":"")} style={{background:"var(--surface2)",borderRadius:8,padding:"10px 12px",border:"1px solid "+(isOD?"var(--red-bd)":"var(--ink7)")}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:3}}><span style={{fontWeight:700,fontSize:13}}>{l.client||"-"}</span><span style={{fontSize:8,fontWeight:700,padding:"1px 5px",borderRadius:99,background:lt==="Existing Client"?"var(--purple-bg)":"var(--cyan-bg)",color:lt==="Existing Client"?"var(--purple)":"var(--cyan)"}}>{lt==="Existing Client"?"EXT":"NEW"}</span></div>
+                  <div style={{fontSize:11,color:"var(--ink3)",marginBottom:6}}>{l.job||""}</div>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}><span style={{fontSize:14,fontWeight:800,color:"var(--green)"}}>{l.budget?fmtM(l.budget):""}</span><span style={{fontSize:9,fontWeight:700,padding:"2px 7px",borderRadius:99,background:l.priority==="High"?"var(--red-bg)":"var(--ink7)",color:l.priority==="High"?"var(--red)":"var(--ink3)"}}>{l.priority}</span></div>
+                  {isOD&&<div style={{fontSize:10,color:"var(--red)",fontWeight:700,marginTop:4}}>⚠ Overdue</div>}
+                </div>})}
+              {items.length===0&&<div style={{padding:16,textAlign:"center",color:"var(--ink5)",fontSize:11}}>Drop here</div>}
+            </div>
+          </div>})}
+      </div>}
+      {view==="activity"&&<div style={{background:"var(--surface)",borderRadius:"var(--r)",border:"1px solid var(--ink6)",overflow:"hidden"}}>
+        <div style={{padding:"14px 20px",borderBottom:"1px solid var(--ink6)",display:"flex",justifyContent:"space-between",alignItems:"center"}}><span style={{fontWeight:700,fontSize:14}}>Activities - {(acts||[]).length}</span><button onClick={()=>aA("")} style={btnP}>+ Log</button></div>
+        <div style={{overflowX:"auto",padding:"8px 16px 16px"}}>
+          <div style={{display:"grid",gridTemplateColumns:"100px 80px 120px 140px 1fr 1fr 30px",gap:10,padding:"8px 0",borderBottom:"2px solid var(--ink7)",minWidth:750}}>{["Date","Lead","Client","Type","Summary","Next",""].map(h=><div key={h} style={{fontSize:10,fontWeight:700,color:"var(--ink4)",textTransform:"uppercase"}}>{h}</div>)}</div>
+          {[...(acts||[])].sort((a,b)=>(b.date||"").localeCompare(a.date||"")).map(a=><div key={a.id} className="row-hover" style={{display:"grid",gridTemplateColumns:"100px 80px 120px 140px 1fr 1fr 30px",gap:10,padding:"5px 0",borderBottom:"1px solid var(--ink7)",alignItems:"center",minWidth:750}}><DtInp value={a.date} onChange={v=>uA(a.id,"date",v)}/><Sel value={a.leadId} onChange={v=>uA(a.id,"leadId",v)} options={leads.map(l=>l.id)} ph="-"/><span style={{fontSize:12,fontWeight:600}}>{(leads.find(l=>l.id===a.leadId)||{}).client||"-"}</span><Sel value={a.type} onChange={v=>uA(a.id,"type",v)} options={ACT_TYPES} ph="Type..."/><Inp value={a.summary} onChange={v=>uA(a.id,"summary",v)} ph="Summary..."/><Inp value={a.next} onChange={v=>uA(a.id,"next",v)} ph="Next..."/><Del onClick={()=>dA(a.id)}/></div>)}
+        </div>
+      </div>}
+    </div>
+    {modalId&&(()=>{const l=leads.find(x=>x.id===modalId);if(!l)return null;const st=getLS(l.status);
+      return<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.5)",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",padding:20,animation:"fadeIn .2s"}} onClick={e=>{if(e.target===e.currentTarget)setModalId(null)}}>
+        <div style={{background:"var(--surface)",borderRadius:14,width:"100%",maxWidth:720,maxHeight:"90vh",overflow:"auto",boxShadow:"0 24px 80px rgba(0,0,0,.3)"}}>
+          <div style={{padding:"18px 24px",borderBottom:"1px solid var(--ink6)",display:"flex",justifyContent:"space-between",alignItems:"center",position:"sticky",top:0,background:"var(--surface)",zIndex:1,borderRadius:"14px 14px 0 0"}}>
+            <div style={{display:"flex",alignItems:"center",gap:10}}><div style={{width:10,height:10,borderRadius:99,background:st?st.c:"var(--ink5)"}}/><span style={{fontSize:12,fontWeight:700,color:"var(--ink4)",fontFamily:"monospace"}}>{l.id}</span><span style={{fontSize:16,fontWeight:800}}>{l.client||"Untitled"}</span><Badge c={st?st.c:"var(--ink3)"} bg={st?st.bg:"var(--ink7)"} bd={st?st.bd:"var(--ink6)"}>{l.status}</Badge></div>
+            <button onClick={()=>setModalId(null)} style={{width:34,height:34,borderRadius:8,border:"none",background:"var(--ink7)",color:"var(--ink3)",fontSize:18,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
+          </div>
+          <div style={{padding:"20px 24px"}}><LeadForm l={l} uL={uL} acts={acts} aA={aA} uA={uA} dA={dA}/>
+            <div style={{display:"flex",justifyContent:"space-between",paddingTop:8,borderTop:"1px solid var(--ink7)"}}><button onClick={()=>{dL(l.id);setModalId(null)}} style={{padding:"7px 18px",borderRadius:"var(--rs)",border:"1.5px solid var(--red-bd)",background:"var(--red-bg)",color:"var(--red)",fontSize:12,fontWeight:700,cursor:"pointer"}}>Delete</button><button onClick={()=>setModalId(null)} style={btnP}>Done</button></div>
+          </div>
+        </div>
+      </div>;
+    })()}
+  </div>;
+}
+
+/* MAIN APP */
+function App(){
+  const[user,setUser]=useState(null);const[ck,setCk]=useState(true);const[tab,setTab]=useState("ops");const[toast,setToast]=useState(null);
+  const st=m=>{setToast(m);setTimeout(()=>setToast(null),2200)};
+  const[days,setDays,opsL,opsS]=useSD("ops",D_OPS);
+  const[leads,setLeads,leadsL,leadsS]=useSD("leads",D_LEADS);
+  const[acts,setActs,actsL,actsS]=useSD("acts",D_ACT);
+  const[team,setTeam,teamL]=useSD("team",DEF_TEAM);
+  const[projects,setProjects,projL,projS]=useSD("projects",D_PROJ);
+  const[pActs,setPActs,pActsL]=useSD("project_acts",D_PACT);
+  const[leadsMeta,setLeadsMeta]=useSD("leads_meta",{lastUpdated:"",memo:""});
+  const[dismissed,setDismissed]=useSD("dismissed",[]);
+  const addM=n=>{if(team&&!team.includes(n)){setTeam(p=>[...p,n].sort());st(n+" added")}};
+  useEffect(()=>{sb.auth.getSession().then(({data:{session}})=>{setUser(session&&session.user||null);setCk(false)});const{data:{subscription}}=sb.auth.onAuthStateChange((_,s)=>{setUser(s&&s.user||null)});return()=>subscription.unsubscribe()},[]);
+  const expAll=()=>{const d={ops:days,leads,acts,team,projects,project_acts:pActs,leads_meta:leadsMeta};const b=new Blob([JSON.stringify(d,null,2)],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="niftycode-backup.json";a.click();st("Downloaded")};
+  const doBackup=()=>{const d={ops:days,leads,acts,team,projects,project_acts:pActs,leads_meta:leadsMeta};const b=new Blob([JSON.stringify(d,null,2)],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(b);const ts=fullNowPKT().replace(/T/,"_").replace(/:/g,"-");a.download="niftycode-auto-backup-"+ts+".json";a.click()};
+  const impAll=()=>{const i=document.createElement("input");i.type="file";i.accept=".json";i.onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=async ev=>{try{const d=JSON.parse(ev.target.result);if(d.ops)setDays(d.ops);if(d.leads)setLeads(d.leads);if(d.acts||d.act)setActs(d.acts||d.act);if(d.team)setTeam(d.team);if(d.projects)setProjects(d.projects);if(d.project_acts)setPActs(d.project_acts);if(d.leads_meta)setLeadsMeta(d.leads_meta);st("Imported!")}catch(e){alert("Invalid file")}};r.readAsText(f)};i.click()};
+  if(ck)return<div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"var(--navy)",color:"var(--ink4)",fontSize:14}}>Loading...</div>;
+  if(!user)return<Auth onAuth={setUser}/>;
+  return<div style={{minHeight:"100vh",background:"var(--bg)"}}>
+    <Toast msg={toast}/>
+    <header style={{background:"var(--navy)",padding:"0 20px",position:"sticky",top:0,zIndex:100}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",height:54,flexWrap:"wrap",gap:8}}>
+        <div style={{display:"flex",alignItems:"center",gap:10}}><div style={{width:30,height:30,borderRadius:7,background:"linear-gradient(135deg,#3b82f6,#1d4ed8)",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,color:"#fff",fontSize:13}}>N</div><span style={{color:"#fff",fontSize:15,fontWeight:800}}>NiftyCode</span></div>
+        <div style={{display:"flex",background:"rgba(255,255,255,.06)",borderRadius:8,padding:3}}>
+          {[["ops","⚡ Ops"],["projects","📂 Projects"],["leads","🎯 Leads"]].map(([k,l])=><button key={k} onClick={()=>setTab(k)} style={{padding:"8px 16px",borderRadius:6,border:"none",fontSize:12,fontWeight:700,cursor:"pointer",background:tab===k?"var(--accent)":"transparent",color:tab===k?"#fff":"var(--ink4)"}}>{l}</button>)}
+        </div>
+        <div style={{display:"flex",gap:5,alignItems:"center"}}>
+          <NotifBell leads={leads} projects={projects} acts={acts} dismissed={dismissed} setDismissed={setDismissed}/>
+          <span style={{fontSize:10,color:"var(--ink4)",maxWidth:120,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{user.email}</span>
+          <button onClick={expAll} style={hdrBtn} title="Export backup">↓</button>
+          <button onClick={impAll} style={hdrBtn} title="Import backup">↑</button>
+          <button onClick={async()=>{await sb.auth.signOut();setUser(null)}} style={{padding:"5px 12px",borderRadius:6,border:"1px solid rgba(255,255,255,.15)",background:"rgba(255,255,255,.06)",color:"#fff",fontSize:11,fontWeight:700,cursor:"pointer"}}>Out</button>
+        </div>
+      </div>
+    </header>
+    {tab==="ops"&&<DailyOps toast={st} team={team||[]} onAdd={addM} days={days} setDays={setDays} loaded={opsL} syncing={opsS} projects={projects} onBackup={doBackup}/>}
+    {tab==="projects"&&<ProjectsTab toast={st} team={team||[]} onAdd={addM} projects={projects} setProjects={setProjects} loaded={projL} syncing={projS} pActs={pActs} setPActs={setPActs} days={days}/>}
+    {tab==="leads"&&<LeadsTab toast={st} leads={leads} setLeads={setLeads} acts={acts} setActs={setActs} loaded={leadsL&&actsL} syncing={leadsS} actsSyncing={actsS} meta={leadsMeta} setMeta={setLeadsMeta} projects={projects} setProjects={setProjects}/>}
+  </div>;
+}
+
+const btnP={padding:"8px 16px",borderRadius:"var(--rs)",border:"none",background:"var(--accent)",color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer"};
+const hdrBtn={padding:"5px 9px",borderRadius:6,border:"1px solid rgba(255,255,255,.12)",background:"transparent",color:"var(--ink4)",fontSize:11,fontWeight:600,cursor:"pointer"};
+const dayBtn={padding:"4px 9px",borderRadius:"var(--rs)",border:"1px solid rgba(255,255,255,.15)",background:"transparent",color:"var(--ink4)",fontSize:10,fontWeight:600,cursor:"pointer"};
+const fltSel={padding:"8px 28px 8px 10px",borderRadius:"var(--rs)",border:"1.5px solid var(--ink6)",background:"var(--surface2)",color:"var(--ink2)",fontSize:12,fontWeight:500,outline:"none",cursor:"pointer",appearance:"none",backgroundImage:"url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%239ca3af'/%3E%3C/svg%3E\")",backgroundRepeat:"no-repeat",backgroundPosition:"right 8px center"};
+const addTBtn={display:"flex",alignItems:"center",justifyContent:"center",gap:8,padding:10,marginTop:8,background:"var(--surface2)",border:"2px dashed var(--ink6)",borderRadius:"var(--rs)",color:"var(--accent)",fontSize:13,fontWeight:600,cursor:"pointer",transition:"all .15s",width:"100%"};
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
