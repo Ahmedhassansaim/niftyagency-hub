@@ -39,7 +39,7 @@ const sb=window.supabase.createClient(SB_URL,SB_KEY);
 
 function useSD(key,def){
   const[d,setD]=useState(null);const[ld,setLd]=useState(false);const[sy,setSy]=useState(false);const t=useRef(null);const f=useRef(true);
-  useEffect(()=>{let c=false;(async()=>{try{const{data:r,error}=await sb.from("shared_store").select("value").eq("key",key).maybeSingle();if(c)return;if(error){setD(def);setLd(true);return}if(r&&r.value!=null)setD(r.value);else{setD(def);await sb.from("shared_store").upsert({key,value:def})}}catch{setD(def)}if(!c)setLd(true)})();return()=>{c=true}},[key]);
+  useEffect(()=>{let c=false;(async()=>{try{const{data:r,error}=await sb.from("shared_store").select("value").eq("key",key).maybeSingle();if(c)return;if(error){setD(def);setLd(true);return}if(r&&r.value!=null)setD(r.value);else{setD(def);await sb.from("shared_store").upsert({key,value:def})}}catch(e){setD(def)}if(!c)setLd(true)})();return()=>{c=true}},[key]);
   useEffect(()=>{if(!ld||d==null)return;if(f.current){f.current=false;return}if(t.current)clearTimeout(t.current);t.current=setTimeout(async()=>{setSy(true);await sb.from("shared_store").upsert({key,value:d});setSy(false)},800);return()=>{if(t.current)clearTimeout(t.current)}},[d,ld]);
   return[d,setD,ld,sy];
 }
@@ -86,13 +86,13 @@ const PROJ_ACT_TYPES=["Development","Design","Meeting","Deployment","Bug Fix","R
 const LEAD_TYPES=["New Lead","Existing Client"];
 let _c=Date.now();const uid=()=>`_${_c++}`;
 const PKT={tz:"Asia/Karachi"};
-const td=()=>new Date().toLocaleDateString("en-CA",{timeZone:PKT.tz}); /* YYYY-MM-DD in PKT */
-const nowPKT=()=>{const d=new Date();return d.toLocaleString("sv-SE",{timeZone:PKT.tz}).replace(" ","T").slice(0,16)}; /* YYYY-MM-DDTHH:MM for datetime-local */
-const fullNowPKT=()=>new Date().toLocaleString("sv-SE",{timeZone:PKT.tz}).replace(" ","T"); /* with seconds */
+const td=()=>new Date().toLocaleDateString("en-CA",{timeZone:PKT.tz});
+const nowPKT=()=>{const o={timeZone:PKT.tz,year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hour12:false};const p=new Intl.DateTimeFormat("en-CA",o).formatToParts(new Date());const g=t=>p.find(x=>x.type===t).value;return `${g("year")}-${g("month")}-${g("day")}T${g("hour")}:${g("minute")}`};
+const fullNowPKT=()=>{const o={timeZone:PKT.tz,year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false};const p=new Intl.DateTimeFormat("en-CA",o).formatToParts(new Date());const g=t=>p.find(x=>x.type===t).value;return `${g("year")}-${g("month")}-${g("day")}T${g("hour")}:${g("minute")}:${g("second")}`};
 const dBtw=(a,b)=>{if(!a||!b)return 0;return Math.floor((new Date(b)-new Date(a))/864e5)};
-const fmtD=d=>{if(!d)return"—";try{return new Date(d+"T00:00:00").toLocaleDateString("en-US",{month:"short",day:"numeric"})}catch{return d}};
-const fmtDT=d=>{if(!d)return"—";try{const dt=new Date(d);if(isNaN(dt))return d.slice(0,10);return dt.toLocaleString("en-US",{month:"short",day:"numeric",hour:"numeric",minute:"2-digit",hour12:true,timeZone:PKT.tz})}catch{return d}};
-const isOverdueNow=eta=>{if(!eta)return false;try{const now=nowPKT();return eta<now}catch{return false}};
+const fmtD=d=>{if(!d)return"—";try{return new Date(d+"T00:00:00").toLocaleDateString("en-US",{month:"short",day:"numeric"})}catch(e){return d}};
+const fmtDT=d=>{if(!d)return"—";try{const dt=new Date(d);if(isNaN(dt))return d.slice(0,10);return dt.toLocaleString("en-US",{month:"short",day:"numeric",hour:"numeric",minute:"2-digit",hour12:true,timeZone:PKT.tz})}catch(e){return d}};
+const isOverdueNow=eta=>{if(!eta)return false;try{const now=nowPKT();return eta<now}catch(e){return false}};
 const isDueToday=eta=>{if(!eta)return false;return eta.slice(0,10)===td()};
 const fmtM=n=>n?`$${Number(n).toLocaleString()}`:"—";
 const bTask=()=>({id:uid(),project:"",linkedProject:"",member:"",desc1:"",desc2:"",status:"To Do",time:"",eta:"",createdAt:fullNowPKT()});
@@ -651,9 +651,9 @@ function App(){
   const[leadsMeta,setLeadsMeta]=useSD("leads_meta",{lastUpdated:"",memo:""});
   const[dismissed,setDismissed]=useSD("dismissed",[]);
   const addM=n=>{if(team&&!team.includes(n)){setTeam(p=>[...p,n].sort());st(`${n} added`)}};
-  useEffect(()=>{sb.auth.getSession().then(({data:{session}})=>{setUser(session?.user||null);setCk(false)});const{data:{subscription}}=sb.auth.onAuthStateChange((_,s)=>{setUser(s?.user||null)});return()=>subscription.unsubscribe()},[]);
+  useEffect(()=>{sb.auth.getSession().then(({data:{session}})=>{setUser(session&&session.user||null);setCk(false)});const{data:{subscription}}=sb.auth.onAuthStateChange((_,s)=>{setUser(s&&s.user||null)});return()=>subscription.unsubscribe()},[]);
   const expAll=()=>{const d={ops:days,leads,acts,team,projects,project_acts:pActs,leads_meta:leadsMeta};const b=new Blob([JSON.stringify(d,null,2)],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="niftycode-backup.json";a.click();st("Downloaded")};
-  const impAll=()=>{const i=document.createElement("input");i.type="file";i.accept=".json";i.onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=async ev=>{try{const d=JSON.parse(ev.target.result);if(d.ops)setDays(d.ops);if(d.leads)setLeads(d.leads);if(d.acts||d.act)setActs(d.acts||d.act);if(d.team)setTeam(d.team);if(d.projects)setProjects(d.projects);if(d.project_acts)setPActs(d.project_acts);if(d.leads_meta)setLeadsMeta(d.leads_meta);st("Imported!")}catch{alert("Invalid")}};r.readAsText(f)};i.click()};
+  const impAll=()=>{const i=document.createElement("input");i.type="file";i.accept=".json";i.onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=async ev=>{try{const d=JSON.parse(ev.target.result);if(d.ops)setDays(d.ops);if(d.leads)setLeads(d.leads);if(d.acts||d.act)setActs(d.acts||d.act);if(d.team)setTeam(d.team);if(d.projects)setProjects(d.projects);if(d.project_acts)setPActs(d.project_acts);if(d.leads_meta)setLeadsMeta(d.leads_meta);st("Imported!")}catch(e){alert("Invalid")}};r.readAsText(f)};i.click()};
   if(ck)return<div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"var(--navy)",color:"var(--ink4)",fontSize:14}}>Loading...</div>;
   if(!user)return<Auth onAuth={setUser}/>;
   return<div style={{minHeight:"100vh",background:"var(--bg)"}}>
