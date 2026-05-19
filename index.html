@@ -27,6 +27,7 @@ select{-webkit-appearance:none;-moz-appearance:none;appearance:none;background-i
 .dragging{opacity:.4}
 .board-card{transition:box-shadow .15s,opacity .2s;cursor:pointer}.board-card:hover{box-shadow:0 3px 10px rgba(0,0,0,.08)}.board-card.dragging{opacity:.4}
 .notif-panel{position:absolute;right:0;top:44px;width:380px;max-height:480px;overflow-y:auto;background:var(--surface);border-radius:var(--r);border:1px solid var(--ink6);box-shadow:0 16px 48px rgba(0,0,0,.15);z-index:300;animation:fadeIn .15s}
+.proj-drop-item:hover{background:var(--ink7)}
 </style>
 </head>
 <body>
@@ -103,6 +104,12 @@ const D_OPS=[{id:"d1",day:"Thursday",date:"2026-04-16",tasks:[{id:"t1",project:"
 const D_LEADS=[{id:"L-001",client:"acme_design_co",job:"Landing page",source:"Upwork Job Post",type:"Web Development",budget:1500,firstContact:"2026-04-14",lastContact:"2026-04-14",nextFollowup:"2026-04-18",status:"Proposal Sent",priority:"High",proposalSent:true,leadType:"New Lead",notes:""}];
 const D_ACT=[];const D_PROJ=[];const D_PACT=[];
 
+/* ═══ MODULE-LEVEL PURE HELPERS (used by DaySection) ═══ */
+const gS=ts=>{const t=ts.length,d=ts.filter(x=>x.status==="Completed").length,h=ts.reduce((s,x)=>s+(parseFloat(x.time)||0),0),ov=ts.filter(x=>isOverdueNow(x.eta)&&x.status!=="Completed").length;return{total:t,done:d,hrs:h,overdue:ov}};
+const sortByProj=tasks=>{const s=[...tasks];s.sort((a,b)=>(a.linkedProject||"zzz").toLowerCase().localeCompare((b.linkedProject||"zzz").toLowerCase()));return s};
+const OPS_GC="24px 1.8fr 1.2fr 1fr 2fr 1.5fr 1.1fr 140px 90px 55px 30px";
+const OPS_HDR=["Project & Client","Linked Project","Team","Description","Notes","Status","ETA","Created","Hrs",""];
+
 /* ═══ SHARED UI ═══ */
 const Toast=({msg})=>msg?<div style={{position:"fixed",bottom:28,left:"50%",transform:"translateX(-50%)",background:"var(--navy)",color:"#fff",padding:"11px 28px",borderRadius:10,fontSize:13,fontWeight:600,zIndex:999,boxShadow:"0 12px 40px rgba(0,0,0,.3)",animation:"slideUp .25s ease"}}>{msg}</div>:null;
 const Badge=({c,bg,bd,children})=><span style={{display:"inline-flex",alignItems:"center",gap:4,background:bg,color:c,border:`1.5px solid ${bd}`,padding:"3px 12px",borderRadius:99,fontSize:11,fontWeight:700,whiteSpace:"nowrap"}}>{children}</span>;
@@ -113,9 +120,54 @@ const DtInp=({value,onChange,warn})=><input type="date" value={value||""} onChan
 const Del=({onClick})=><button onClick={onClick} style={{width:30,height:30,display:"flex",alignItems:"center",justifyContent:"center",borderRadius:"var(--rs)",border:"none",background:"transparent",color:"var(--ink5)",fontSize:14,cursor:"pointer",flexShrink:0}} onMouseEnter={e=>{e.currentTarget.style.background="var(--red-bg)";e.currentTarget.style.color="var(--red)"}} onMouseLeave={e=>{e.currentTarget.style.background="transparent";e.currentTarget.style.color="var(--ink5)"}}>✕</button>;
 const FL={fontSize:10,fontWeight:700,color:"var(--ink4)",textTransform:"uppercase",letterSpacing:".06em",marginBottom:5};
 const TeamSel=({value,onChange,team,onAdd})=>{const hc=e=>{if(e.target.value==="__add__"){const n=prompt("Enter new team member:");if(n&&n.trim()){onAdd(n.trim());onChange(n.trim())}}else onChange(e.target.value)};return<select value={value||""} onChange={hc} style={{width:"100%",padding:"8px 10px",border:"1.5px solid var(--ink6)",borderRadius:"var(--rs)",fontSize:12,fontWeight:value?600:400,outline:"none",cursor:"pointer",background:"var(--surface)",color:value?"var(--ink)":"var(--ink4)"}}><option value="">Assign...</option>{team.map(m=><option key={m}>{m}</option>)}<option value="__add__" style={{fontWeight:700,color:"#2563eb"}}>+ Add new...</option></select>};
-const ProjSel=({value,onChange,projects,id})=>{const dlId=`pl-${id||'def'}`;return<div style={{position:"relative"}}><input list={dlId} value={value||""} onChange={e=>onChange(e.target.value)} placeholder="Search & link project..." style={{width:"100%",padding:"8px 10px",border:"1.5px solid var(--ink6)",borderRadius:"var(--rs)",fontSize:12,fontWeight:value?600:400,outline:"none",background:"var(--surface)",color:value?"var(--ink)":"var(--ink4)"}} onFocus={e=>e.target.style.borderColor="var(--accent)"} onBlur={e=>e.target.style.borderColor="var(--ink6)"}/><datalist id={dlId}>{projects.map(p=><option key={p.id} value={p.name}>{p.name}  -  {p.client||"?"}</option>)}</datalist></div>};
 const Sync=({s})=><span style={{display:"inline-flex",alignItems:"center",fontSize:10,color:"var(--ink4)",gap:4}}><span style={{width:8,height:8,borderRadius:99,background:s?"var(--amber)":"var(--green)",display:"inline-block"}}/>{s?"Saving...":"Synced"}</span>;
 const ETAInp=({value,onChange})=>{const od=isOverdueNow(value);const dt=isDueToday(value);return<input type="datetime-local" value={value||""} onChange={e=>onChange(e.target.value)} style={{padding:"6px 6px",border:`1.5px solid ${od?"var(--red-bd)":dt?"var(--orange-bd)":"var(--ink6)"}`,borderRadius:"var(--rs)",fontSize:11,outline:"none",background:od?"var(--red-bg)":dt?"var(--orange-bg)":"var(--surface)",width:"100%",fontFamily:"inherit",color:od?"var(--red)":dt?"var(--orange)":"var(--ink)"}}/>};
+const TipInp=({value,onChange,ph,bold})=><div title={value||""} style={{position:"relative"}}><input value={value||""} onChange={e=>onChange(e.target.value)} placeholder={ph} style={{width:"100%",padding:"8px 10px",border:"1.5px solid var(--ink6)",borderRadius:"var(--rs)",fontSize:13,outline:"none",background:"var(--surface)",fontWeight:bold?600:400,color:"var(--ink)"}} onFocus={e=>e.target.style.borderColor="var(--accent)"} onBlur={e=>e.target.style.borderColor="var(--ink6)"}/></div>;
+
+/* ═══ CUSTOM PROJECT SELECT  -  viewport-aware, searchable ═══ */
+function ProjSelCustom({value,onChange,projects}){
+  const[open,setOpen]=useState(false);
+  const[search,setSearch]=useState("");
+  const[above,setAbove]=useState(false);
+  const wrapRef=useRef(null);
+  const searchRef=useRef(null);
+  useEffect(()=>{
+    const h=e=>{if(wrapRef.current&&!wrapRef.current.contains(e.target)){setOpen(false);setSearch("");}};
+    document.addEventListener("mousedown",h);
+    return()=>document.removeEventListener("mousedown",h);
+  },[]);
+  useEffect(()=>{if(open&&searchRef.current)searchRef.current.focus();},[open]);
+  const handleOpen=()=>{
+    if(!open&&wrapRef.current){
+      const rect=wrapRef.current.getBoundingClientRect();
+      setAbove(window.innerHeight-rect.bottom<260);
+    }
+    setOpen(p=>!p);
+    setSearch("");
+  };
+  const filtered=(projects||[]).filter(p=>!search||(p.name||"").toLowerCase().includes(search.toLowerCase())||(p.client||"").toLowerCase().includes(search.toLowerCase()));
+  const choose=name=>{onChange(name);setOpen(false);setSearch("");};
+  return<div ref={wrapRef} style={{position:"relative"}}>
+    <div onClick={handleOpen} style={{width:"100%",padding:"8px 10px",border:`1.5px solid ${open?"var(--accent-border)":"var(--ink6)"}`,borderRadius:"var(--rs)",fontSize:12,fontWeight:value?600:400,cursor:"pointer",background:"var(--surface)",color:value?"var(--ink)":"var(--ink4)",display:"flex",alignItems:"center",justifyContent:"space-between",userSelect:"none",gap:4}}>
+      <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",flex:1}}>{value||"Link project..."}</span>
+      <span style={{color:"var(--ink4)",fontSize:9,flexShrink:0}}>▼</span>
+    </div>
+    {open&&<div style={{position:"absolute",left:0,right:0,...(above?{bottom:"calc(100% + 3px)"}:{top:"calc(100% + 3px)"}),zIndex:600,background:"var(--surface)",border:"1.5px solid var(--accent-border)",borderRadius:"var(--rs)",boxShadow:"0 8px 28px rgba(0,0,0,.18)",display:"flex",flexDirection:"column",maxHeight:230,minWidth:200}}>
+      <div style={{padding:"6px 8px",borderBottom:"1px solid var(--ink6)",flexShrink:0,display:"flex",alignItems:"center",gap:6}}>
+        <span style={{fontSize:11,color:"var(--ink4)"}}>🔍</span>
+        <input ref={searchRef} value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search project..." style={{flex:1,border:"none",outline:"none",fontSize:12,background:"transparent",color:"var(--ink)"}}/>
+      </div>
+      <div style={{overflowY:"auto",flex:1}}>
+        {value&&<div className="proj-drop-item" onClick={()=>choose("")} style={{padding:"6px 10px",fontSize:11,color:"var(--red)",cursor:"pointer",borderBottom:"1px solid var(--ink7)"}}>✕ Clear selection</div>}
+        {filtered.map(p=><div key={p.id} className="proj-drop-item" onClick={()=>choose(p.name)} style={{padding:"7px 10px",fontSize:12,cursor:"pointer",background:value===p.name?"var(--accent-light)":"transparent",borderBottom:"1px solid var(--ink7)"}}>
+          <div style={{fontWeight:600,color:"var(--ink)"}}>{p.name}</div>
+          {p.client&&<div style={{fontSize:10,color:"var(--ink4)"}}>{p.client}</div>}
+        </div>)}
+        {filtered.length===0&&<div style={{padding:"14px 10px",fontSize:11,color:"var(--ink4)",textAlign:"center"}}>No matches</div>}
+      </div>
+    </div>}
+  </div>;
+}
 
 /* ═══ NOTIFICATION BELL ═══ */
 function NotifBell({leads,projects,acts,dismissed,setDismissed}){
@@ -156,7 +208,7 @@ function NotifBell({leads,projects,acts,dismissed,setDismissed}){
   </div>;
 }
 
-/* ═══ PROJECT DETAIL FORM (top-level to avoid focus loss) ═══ */
+/* ═══ PROJECT DETAIL FORM ═══ */
 function ProjForm({p,uP,team,onAdd,pActs,addPA,uPA,dPA,getLinkedOps,actOpen,setActOpen}){
   const projActs=(pActs||[]).filter(a=>a.projectId===p.id).sort((a,b)=>(b.date||"").localeCompare(a.date||""));
   const linkedOps=getLinkedOps(p.name);const isAO=actOpen[p.id];
@@ -218,7 +270,7 @@ function ProjectsTab({toast,team,onAdd,projects,setProjects,loaded,syncing,pActs
   const addPA=pid=>{setPActs(p=>[{id:uid(),date:td(),projectId:pid,type:"Note",summary:"",next:""},...(p||[])]);toast("Activity logged")};
   const uPA=(id,f,v)=>setPActs(p=>(p||[]).map(a=>a.id===id?{...a,[f]:v}:a));
   const dPA=id=>setPActs(p=>(p||[]).filter(a=>a.id!==id));
-  const getLinkedOps=(projName)=>{if(!days||!projName)return[];const tasks=[];(days||[]).forEach(d=>{d.tasks.forEach(t=>{if(t.linkedProject===projName||t.project===projName){tasks.push({...t,dayDate:d.date,dayName:d.day})}})});return tasks.sort((a,b)=>(b.dayDate||"").localeCompare(a.dayDate||""))};
+  const getLinkedOps=projName=>{if(!days||!projName)return[];const tasks=[];(days||[]).forEach(d=>{d.tasks.forEach(t=>{if(t.linkedProject===projName||t.project===projName){tasks.push({...t,dayDate:d.date,dayName:d.day})}})});return tasks.sort((a,b)=>(b.dayDate||"").localeCompare(a.dayDate||""))};
   const bDS=(e,id)=>{setBoardDrag(id);didDrag.current=true;e.dataTransfer.effectAllowed="move"};
   const bDO=(e,s)=>{e.preventDefault();setBoardOver(s)};
   const bDr=(e,s)=>{e.preventDefault();setBoardOver(null);if(!boardDrag)return;uP(boardDrag,"status",s);setBoardDrag(null);toast(`Moved to ${s}`)};
@@ -308,9 +360,108 @@ function ProjectsTab({toast,team,onAdd,projects,setProjects,loaded,syncing,pActs
   </div>;
 }
 
-/* ═══ DAILY OPS ═══ */
-const TipInp=({value,onChange,ph,bold,wide})=><div title={value||""} style={{position:"relative"}}><input value={value||""} onChange={e=>onChange(e.target.value)} placeholder={ph} style={{width:"100%",padding:"8px 10px",border:"1.5px solid var(--ink6)",borderRadius:"var(--rs)",fontSize:13,outline:"none",background:"var(--surface)",fontWeight:bold?600:400,color:"var(--ink)"}} onFocus={e=>e.target.style.borderColor="var(--accent)"} onBlur={e=>e.target.style.borderColor="var(--ink6)"}/></div>;
+/* ═══ DAY SECTION  -  top-level so React never unmounts it on parent re-render ═══ */
+function DaySection({day,open,setOpen,mF,uDay,cF,dupDay,dDay,di,dov,setDOV,onDS,onDE,onDO,onDr,uTask,aTask,dTask,projNames,team,onAdd}){
+  const st=gS(day.tasks);
+  const isO=open[day.id];
+  const raw=day.tasks.filter(mF);
+  const ft=sortByProj(raw);
+  const pct=st.total?Math.round(st.done/st.total*100):0;
+  return<section style={{background:"var(--surface)",borderRadius:"var(--r)",border:"1px solid var(--ink6)",overflow:"hidden"}}>
+    <div style={{background:"var(--navy)",padding:"10px 16px",display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:8}}>
+      <div style={{display:"flex",alignItems:"center",gap:8}}>
+        <button onClick={()=>setOpen(p=>({...p,[day.id]:!p[day.id]}))} style={{background:"none",border:"none",color:"#fff",cursor:"pointer",fontSize:9,opacity:.5,transform:isO?"":"rotate(-90deg)",transition:"transform .2s",padding:4}}>▼</button>
+        <select value={day.day} onChange={e=>uDay(day.id,"day",e.target.value)} style={{background:"rgba(255,255,255,.1)",border:"1px solid rgba(255,255,255,.15)",borderRadius:"var(--rs)",color:"#fff",fontSize:14,fontWeight:700,padding:"4px 28px 4px 10px",cursor:"pointer",outline:"none",appearance:"none",backgroundImage:"url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='white'/%3E%3C/svg%3E\")",backgroundRepeat:"no-repeat",backgroundPosition:"right 8px center"}}>{WDAYS.map(d=><option key={d} value={d} style={{color:"#000"}}>{d}</option>)}</select>
+        <input type="date" value={day.date||""} onChange={e=>uDay(day.id,"date",e.target.value)} style={{background:"rgba(255,255,255,.1)",border:"1px solid rgba(255,255,255,.15)",borderRadius:"var(--rs)",color:"#fff",fontSize:12,padding:"4px 8px",outline:"none"}}/>
+      </div>
+      <div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
+        <div style={{width:55,height:5,background:"rgba(255,255,255,.15)",borderRadius:3,overflow:"hidden"}}><div style={{width:`${pct}%`,height:"100%",background:pct>=100?"var(--green)":"var(--accent)",borderRadius:3}}/></div>
+        <span style={{color:"var(--ink4)",fontSize:10,fontWeight:600}}>{pct}%</span>
+        <span style={{color:"var(--ink4)",fontSize:11}}>{st.total}</span>
+        {st.hrs>0&&<span style={{color:"var(--cyan-bd)",fontSize:11}}>{st.hrs}h</span>}
+        {st.overdue>0&&<span style={{color:"#f87171",fontSize:11,fontWeight:700}}>⚠{st.overdue}</span>}
+        <button onClick={e=>{e.stopPropagation();cF(day.id)}} style={dayBtn}>⤴</button>
+        <button onClick={e=>{e.stopPropagation();dupDay(day.id)}} style={dayBtn}>⧉</button>
+        <button onClick={e=>{e.stopPropagation();dDay(day.id)}} style={{...dayBtn,color:"#f87171"}}>🗑</button>
+      </div>
+    </div>
+    {isO&&<div style={{overflowX:"auto",padding:"4px 10px 12px"}}>
+      <div style={{display:"grid",gridTemplateColumns:OPS_GC,gap:6,padding:"8px 4px 6px",borderBottom:"2px solid var(--ink7)",minWidth:1050}}>
+        <div/>{OPS_HDR.map(h=><div key={h} style={{fontSize:10,fontWeight:700,color:"var(--ink4)",textTransform:"uppercase",letterSpacing:".05em"}}>{h}</div>)}
+      </div>
+      {ft.map((t,i)=>{
+        const isDO=dov&&dov.did===day.id&&dov.tid===t.id;
+        const etaOD=isOverdueNow(t.eta)&&t.status!=="Completed";
+        const prevProj=i>0?ft[i-1].linkedProject:null;
+        const showProjDivider=t.linkedProject&&t.linkedProject!==prevProj;
+        return<React.Fragment key={t.id}>
+          {showProjDivider&&<div style={{gridColumn:"1/-1",padding:"6px 8px 2px",fontSize:10,fontWeight:700,color:"var(--accent2)",borderTop:i>0?"2px solid var(--accent-border)":"none",marginTop:i>0?4:0}}>📂 {t.linkedProject}</div>}
+          <div draggable className={`row-hover${isDO?" drag-over":""}`} onDragStart={e=>onDS(e,day.id,t.id)} onDragEnd={onDE} onDragOver={e=>onDO(e,day.id,t.id)} onDragLeave={()=>setDOV(null)} onDrop={e=>onDr(e,day.id,t.id)} style={{display:"grid",gridTemplateColumns:OPS_GC,gap:6,padding:"6px 4px",borderBottom:"1px solid var(--ink7)",alignItems:"center",minWidth:1080,background:etaOD?"var(--red-bg)":i%2?"var(--surface2)":"var(--surface)",transition:"background .1s"}}>
+            <div className="drag-handle">⠿</div>
+            <TipInp value={t.project} onChange={v=>uTask(day.id,t.id,"project",v)} ph="Project & Client..." bold/>
+            <ProjSelCustom value={t.linkedProject} onChange={v=>uTask(day.id,t.id,"linkedProject",v)} projects={projNames}/>
+            <TeamSel value={t.member} onChange={v=>uTask(day.id,t.id,"member",v)} team={team} onAdd={onAdd}/>
+            <TipInp value={t.desc1} onChange={v=>uTask(day.id,t.id,"desc1",v)} ph="Task description..."/>
+            <TipInp value={t.desc2} onChange={v=>uTask(day.id,t.id,"desc2",v)} ph="Notes..."/>
+            <Sel value={t.status} onChange={v=>uTask(day.id,t.id,"status",v)} options={OPS_ST} ph="Status..." sty={OPS_ST}/>
+            <ETAInp value={t.eta} onChange={v=>uTask(day.id,t.id,"eta",v)}/>
+            <span style={{fontSize:9,color:"var(--ink4)",padding:"0 2px",lineHeight:1.3}} title={t.createdAt||""}>{t.createdAt?fmtDT(t.createdAt):" - "}</span>
+            <Inp value={t.time} onChange={v=>uTask(day.id,t.id,"time",v)} ph="0" small mono/>
+            <Del onClick={()=>dTask(day.id,t.id)}/>
+          </div>
+        </React.Fragment>;
+      })}
+      {ft.length===0&&<div style={{padding:20,textAlign:"center",color:"var(--ink4)",fontSize:13}}>No tasks match</div>}
+      <button onClick={()=>aTask(day.id)} style={addTBtn} onMouseEnter={e=>{e.currentTarget.style.borderColor="var(--accent)";e.currentTarget.style.background="var(--accent-light)"}} onMouseLeave={e=>{e.currentTarget.style.borderColor="var(--ink6)";e.currentTarget.style.background="var(--surface2)"}}>+ Add Task</button>
+    </div>}
+  </section>;
+}
 
+/* ═══ BOARD VIEW  -  top-level for same reason ═══ */
+function OpsBoard({days,recentDays,boardDay,setBoardDay,mF}){
+  const availDays=recentDays.filter(d=>d.tasks.length>0);
+  const selDay=boardDay?days.find(d=>d.id===boardDay):availDays[0];
+  if(!selDay)return<div style={{padding:40,textAlign:"center",color:"var(--ink4)"}}>No days with tasks</div>;
+  const dayTasks=selDay.tasks.filter(mF);
+  return<div>
+    <div style={{marginBottom:14,display:"flex",alignItems:"center",gap:10}}>
+      <span style={{fontSize:12,fontWeight:700,color:"var(--ink2)"}}>Showing:</span>
+      <select value={selDay.id} onChange={e=>setBoardDay(e.target.value)} style={{...fltSel,fontWeight:700,fontSize:13}}>
+        {days.map(d=><option key={d.id} value={d.id}>{d.day}  -  {fmtD(d.date)} ({d.tasks.length} tasks)</option>)}
+      </select>
+    </div>
+    <div style={{display:"flex",gap:10,overflowX:"auto",paddingBottom:20}}>
+      {OPS_ST.map(st=>{
+        const items=dayTasks.filter(t=>t.status===st.v);
+        const byProj={};items.forEach(t=>{const k=t.linkedProject||"Unlinked";if(!byProj[k])byProj[k]=[];byProj[k].push(t)});
+        return<div key={st.v} style={{minWidth:230,flex:"1 0 230px",background:"var(--surface)",borderRadius:"var(--r)",border:"1px solid var(--ink6)",overflow:"hidden"}}>
+          <div style={{padding:"10px 14px",borderBottom:`2.5px solid ${st.bd}`,background:st.bg}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}><span style={{fontWeight:800,fontSize:13,color:st.c}}>{st.v}</span><span style={{background:"var(--navy)",color:"#fff",fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:99}}>{items.length}</span></div>
+          </div>
+          <div style={{padding:8,display:"flex",flexDirection:"column",gap:4,minHeight:60}}>
+            {Object.entries(byProj).map(([proj,tasks])=><div key={proj}>
+              {proj!=="Unlinked"&&<div style={{fontSize:9,fontWeight:700,color:"var(--accent2)",padding:"4px 6px 2px",textTransform:"uppercase"}}>📂 {proj}</div>}
+              {tasks.map(t=>{const etaOD=isOverdueNow(t.eta)&&t.status!=="Completed";
+                return<div key={t.id} title={`${t.desc1||""}\n${t.desc2||""}`} style={{background:etaOD?"var(--red-bg)":"var(--surface2)",borderRadius:6,padding:"8px 10px",border:`1px solid ${etaOD?"var(--red-bd)":"var(--ink7)"}`,marginBottom:4}}>
+                  <div style={{fontWeight:600,fontSize:12,marginBottom:2}}>{t.project||" - "}</div>
+                  <div style={{fontSize:11,color:"var(--ink3)",marginBottom:3}}>{(t.desc1||"").slice(0,50)}{(t.desc1||"").length>50?"...":""}</div>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                    <span style={{fontSize:10,color:"var(--ink4)"}}>{t.member||""}</span>
+                    {t.eta&&<span style={{fontSize:9,fontWeight:700,color:etaOD?"var(--red)":"var(--ink4)"}}>{etaOD?"⚠ ":""}{fmtDT(t.eta)}</span>}
+                  </div>
+                  {t.time&&<div style={{fontSize:10,color:"var(--cyan)",marginTop:2}}>{t.time}h</div>}
+                </div>;
+              })}
+            </div>)}
+            {items.length===0&&<div style={{padding:16,textAlign:"center",color:"var(--ink5)",fontSize:11}}>No tasks</div>}
+          </div>
+        </div>;
+      })}
+    </div>
+  </div>;
+}
+
+/* ═══ DAILY OPS ═══ */
 function DailyOps({toast,team,onAdd,days,setDays,loaded,syncing,projects,onBackup}){
   const[open,setOpen]=useState({});
   const[fM,setFM]=useState("");
@@ -320,7 +471,7 @@ function DailyOps({toast,team,onAdd,days,setDays,loaded,syncing,projects,onBacku
   const[dov,setDOV]=useState(null);
   const[opsView,setOpsView]=useState("list");
   const[archOpen,setArchOpen]=useState(false);
-  /* FIX: moved boardDay useState here, above the early return, to obey Rules of Hooks */
+  /* FIX: boardDay useState is above the early return — Rules of Hooks */
   const[boardDay,setBoardDay]=useState(null);
 
   if(!loaded||!days)return<div style={{padding:40,textAlign:"center",color:"var(--ink4)"}}>Loading...</div>;
@@ -337,111 +488,21 @@ function DailyOps({toast,team,onAdd,days,setDays,loaded,syncing,projects,onBacku
   const uTask=(did,tid,f,v)=>setDays(p=>p.map(d=>d.id===did?{...d,tasks:d.tasks.map(t=>t.id===tid?{...t,[f]:v}:t)}:d));
   const dTask=(did,tid)=>setDays(p=>p.map(d=>d.id===did?{...d,tasks:d.tasks.filter(t=>t.id!==tid)}:d));
 
-  /* D&D list */
+  /* D&D */
   const onDS=(e,did,tid)=>{setDI({did,tid});e.dataTransfer.effectAllowed="move";e.currentTarget.classList.add("dragging")};
   const onDE=e=>{e.currentTarget.classList.remove("dragging");setDI(null);setDOV(null)};
   const onDO=(e,did,tid)=>{e.preventDefault();if(di&&di.did===did&&di.tid!==tid)setDOV({did,tid})};
   const onDr=(e,did,tid)=>{e.preventDefault();setDOV(null);if(!di||di.did!==did)return;setDays(p=>p.map(d=>{if(d.id!==did)return d;const ts=[...d.tasks];const fi=ts.findIndex(t=>t.id===di.tid);const ti=ts.findIndex(t=>t.id===tid);if(fi<0||ti<0||fi===ti)return d;const[m]=ts.splice(fi,1);ts.splice(ti,0,m);return{...d,tasks:ts}}));setDI(null);toast("Reordered")};
 
-  /* Stats & filters */
-  const gS=ts=>{const t=ts.length,d=ts.filter(x=>x.status==="Completed").length,h=ts.reduce((s,x)=>s+(parseFloat(x.time)||0),0),ov=ts.filter(x=>isOverdueNow(x.eta)&&x.status!=="Completed").length;return{total:t,done:d,hrs:h,overdue:ov}};
-  const gs=gS(days.flatMap(d=>d.tasks));
   const mF=t=>{if(fM&&t.member!==fM)return false;if(fS&&t.status!==fS)return false;if(q){const s=q.toLowerCase();return[t.project,t.linkedProject,t.desc1,t.desc2,t.member].some(x=>(x||"").toLowerCase().includes(s))}return true};
+  const gs=gS(days.flatMap(d=>d.tasks));
   const projNames=(projects||[]).filter(p=>p.status==="Active");
-
   const sortedDays=[...days].sort((a,b)=>(b.date||"").localeCompare(a.date||""));
   const recentDays=sortedDays.slice(0,7);
   const archiveDays=sortedDays.slice(7);
 
-  const sortByProj=(tasks)=>{const sorted=[...tasks];sorted.sort((a,b)=>{const ap=(a.linkedProject||"zzz").toLowerCase();const bp=(b.linkedProject||"zzz").toLowerCase();return ap.localeCompare(bp)});return sorted};
-
-  const gc="24px 1.8fr 1.2fr 1fr 2fr 1.5fr 1.1fr 140px 90px 55px 30px";
-  const headers=["Project & Client","Linked Project","Team","Description","Notes","Status","ETA","Created","Hrs",""];
-
-  const DaySection=({day})=>{
-    const st=gS(day.tasks);const isO=open[day.id];const raw=day.tasks.filter(mF);const ft=sortByProj(raw);const pct=st.total?Math.round(st.done/st.total*100):0;
-    return<section key={day.id} style={{background:"var(--surface)",borderRadius:"var(--r)",border:"1px solid var(--ink6)",overflow:"hidden"}}>
-      <div style={{background:"var(--navy)",padding:"10px 16px",display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:8}}>
-        <div style={{display:"flex",alignItems:"center",gap:8}}>
-          <button onClick={()=>setOpen(p=>({...p,[day.id]:!p[day.id]}))} style={{background:"none",border:"none",color:"#fff",cursor:"pointer",fontSize:9,opacity:.5,transform:isO?"":"rotate(-90deg)",transition:"transform .2s",padding:4}}>▼</button>
-          <select value={day.day} onChange={e=>uDay(day.id,"day",e.target.value)} style={{background:"rgba(255,255,255,.1)",border:"1px solid rgba(255,255,255,.15)",borderRadius:"var(--rs)",color:"#fff",fontSize:14,fontWeight:700,padding:"4px 28px 4px 10px",cursor:"pointer",outline:"none",appearance:"none",backgroundImage:"url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='white'/%3E%3C/svg%3E\")",backgroundRepeat:"no-repeat",backgroundPosition:"right 8px center"}}>{WDAYS.map(d=><option key={d} value={d} style={{color:"#000"}}>{d}</option>)}</select>
-          <input type="date" value={day.date||""} onChange={e=>uDay(day.id,"date",e.target.value)} style={{background:"rgba(255,255,255,.1)",border:"1px solid rgba(255,255,255,.15)",borderRadius:"var(--rs)",color:"#fff",fontSize:12,padding:"4px 8px",outline:"none"}}/>
-        </div>
-        <div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
-          <div style={{width:55,height:5,background:"rgba(255,255,255,.15)",borderRadius:3,overflow:"hidden"}}><div style={{width:`${pct}%`,height:"100%",background:pct>=100?"var(--green)":"var(--accent)",borderRadius:3}}/></div>
-          <span style={{color:"var(--ink4)",fontSize:10,fontWeight:600}}>{pct}%</span><span style={{color:"var(--ink4)",fontSize:11}}>{st.total}</span>
-          {st.hrs>0&&<span style={{color:"var(--cyan-bd)",fontSize:11}}>{st.hrs}h</span>}
-          {st.overdue>0&&<span style={{color:"#f87171",fontSize:11,fontWeight:700}}>⚠{st.overdue}</span>}
-          <button onClick={e=>{e.stopPropagation();cF(day.id)}} style={dayBtn}>⤴</button>
-          <button onClick={e=>{e.stopPropagation();dupDay(day.id)}} style={dayBtn}>⧉</button>
-          <button onClick={e=>{e.stopPropagation();dDay(day.id)}} style={{...dayBtn,color:"#f87171"}}>🗑</button>
-        </div>
-      </div>
-      {isO&&<div style={{overflowX:"auto",padding:"4px 10px 12px"}}>
-        <div style={{display:"grid",gridTemplateColumns:gc,gap:6,padding:"8px 4px 6px",borderBottom:"2px solid var(--ink7)",minWidth:1050}}><div/>{headers.map(h=><div key={h} style={{fontSize:10,fontWeight:700,color:"var(--ink4)",textTransform:"uppercase",letterSpacing:".05em"}}>{h}</div>)}</div>
-        {ft.map((t,i)=>{const isDO=dov&&dov.did===day.id&&dov.tid===t.id;
-          const etaOD=isOverdueNow(t.eta)&&t.status!=="Completed";
-          const prevProj=i>0?ft[i-1].linkedProject:null;const showProjDivider=t.linkedProject&&t.linkedProject!==prevProj;
-          return<React.Fragment key={t.id}>
-            {showProjDivider&&<div style={{gridColumn:"1/-1",padding:"6px 8px 2px",fontSize:10,fontWeight:700,color:"var(--accent2)",borderTop:i>0?"2px solid var(--accent-border)":"none",marginTop:i>0?4:0}}>📂 {t.linkedProject}</div>}
-            <div draggable className={`row-hover${isDO?" drag-over":""}`} onDragStart={e=>onDS(e,day.id,t.id)} onDragEnd={onDE} onDragOver={e=>onDO(e,day.id,t.id)} onDragLeave={()=>setDOV(null)} onDrop={e=>onDr(e,day.id,t.id)} style={{display:"grid",gridTemplateColumns:gc,gap:6,padding:"6px 4px",borderBottom:"1px solid var(--ink7)",alignItems:"center",minWidth:1080,background:etaOD?"var(--red-bg)":i%2?"var(--surface2)":"var(--surface)",transition:"background .1s"}}>
-            <div className="drag-handle">⠿</div>
-            <TipInp value={t.project} onChange={v=>uTask(day.id,t.id,"project",v)} ph="Project & Client..." bold/>
-            <ProjSel value={t.linkedProject} onChange={v=>uTask(day.id,t.id,"linkedProject",v)} projects={projNames} id={t.id}/>
-            <TeamSel value={t.member} onChange={v=>uTask(day.id,t.id,"member",v)} team={team} onAdd={onAdd}/>
-            <TipInp value={t.desc1} onChange={v=>uTask(day.id,t.id,"desc1",v)} ph="Task description..."/>
-            <TipInp value={t.desc2} onChange={v=>uTask(day.id,t.id,"desc2",v)} ph="Notes..."/>
-            <Sel value={t.status} onChange={v=>uTask(day.id,t.id,"status",v)} options={OPS_ST} ph="Status..." sty={OPS_ST}/>
-            <ETAInp value={t.eta} onChange={v=>uTask(day.id,t.id,"eta",v)}/>
-            <span style={{fontSize:9,color:"var(--ink4)",padding:"0 2px",lineHeight:1.3}} title={t.createdAt||""}>{t.createdAt?fmtDT(t.createdAt):" - "}</span>
-            <Inp value={t.time} onChange={v=>uTask(day.id,t.id,"time",v)} ph="0" small mono/>
-            <Del onClick={()=>dTask(day.id,t.id)}/>
-          </div></React.Fragment>})}
-        {ft.length===0&&<div style={{padding:20,textAlign:"center",color:"var(--ink4)",fontSize:13}}>No tasks match</div>}
-        <button onClick={()=>aTask(day.id)} style={addTBtn} onMouseEnter={e=>{e.currentTarget.style.borderColor="var(--accent)";e.currentTarget.style.background="var(--accent-light)"}} onMouseLeave={e=>{e.currentTarget.style.borderColor="var(--ink6)";e.currentTarget.style.background="var(--surface2)"}}>+ Add Task</button>
-      </div>}
-    </section>;
-  };
-
-  const BoardView=()=>{
-    const availDays=recentDays.filter(d=>d.tasks.length>0);
-    const selDay=boardDay?days.find(d=>d.id===boardDay):availDays[0];
-    if(!selDay)return<div style={{padding:40,textAlign:"center",color:"var(--ink4)"}}>No days with tasks</div>;
-    const dayTasks=selDay.tasks.filter(mF);
-    return<div>
-      <div style={{marginBottom:14,display:"flex",alignItems:"center",gap:10}}>
-        <span style={{fontSize:12,fontWeight:700,color:"var(--ink2)"}}>Showing:</span>
-        <select value={selDay.id} onChange={e=>setBoardDay(e.target.value)} style={{...fltSel,fontWeight:700,fontSize:13}}>
-          {days.map(d=><option key={d.id} value={d.id}>{d.day}  -  {fmtD(d.date)} ({d.tasks.length} tasks)</option>)}
-        </select>
-      </div>
-      <div style={{display:"flex",gap:10,overflowX:"auto",paddingBottom:20}}>
-        {OPS_ST.map(st=>{const items=dayTasks.filter(t=>t.status===st.v);
-          const byProj={};items.forEach(t=>{const k=t.linkedProject||"Unlinked";if(!byProj[k])byProj[k]=[];byProj[k].push(t)});
-          return<div key={st.v} style={{minWidth:230,flex:"1 0 230px",background:"var(--surface)",borderRadius:"var(--r)",border:"1px solid var(--ink6)",overflow:"hidden"}}>
-            <div style={{padding:"10px 14px",borderBottom:`2.5px solid ${st.bd}`,background:st.bg}}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}><span style={{fontWeight:800,fontSize:13,color:st.c}}>{st.v}</span><span style={{background:"var(--navy)",color:"#fff",fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:99}}>{items.length}</span></div>
-            </div>
-            <div style={{padding:8,display:"flex",flexDirection:"column",gap:4,minHeight:60}}>
-              {Object.entries(byProj).map(([proj,tasks])=><div key={proj}>
-                {proj!=="Unlinked"&&<div style={{fontSize:9,fontWeight:700,color:"var(--accent2)",padding:"4px 6px 2px",textTransform:"uppercase"}}>📂 {proj}</div>}
-                {tasks.map(t=>{const etaOD=isOverdueNow(t.eta)&&t.status!=="Completed";
-                  return<div key={t.id} title={`${t.desc1||""}\n${t.desc2||""}`} style={{background:etaOD?"var(--red-bg)":"var(--surface2)",borderRadius:6,padding:"8px 10px",border:`1px solid ${etaOD?"var(--red-bd)":"var(--ink7)"}`,marginBottom:4}}>
-                    <div style={{fontWeight:600,fontSize:12,marginBottom:2}}>{t.project||" - "}</div>
-                    <div style={{fontSize:11,color:"var(--ink3)",marginBottom:3}}>{(t.desc1||"").slice(0,50)}{(t.desc1||"").length>50?"...":""}</div>
-                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                      <span style={{fontSize:10,color:"var(--ink4)"}}>{t.member||""}</span>
-                      {t.eta&&<span style={{fontSize:9,fontWeight:700,color:etaOD?"var(--red)":"var(--ink4)"}}>{etaOD?"⚠ ":""}{fmtDT(t.eta)}</span>}
-                    </div>
-                    {t.time&&<div style={{fontSize:10,color:"var(--cyan)",marginTop:2}}>{t.time}h</div>}
-                  </div>})}
-              </div>)}
-              {items.length===0&&<div style={{padding:16,textAlign:"center",color:"var(--ink5)",fontSize:11}}>No tasks</div>}
-            </div>
-          </div>})}
-      </div>
-    </div>;
-  };
+  /* Shared props bundle for DaySection */
+  const dayProps={open,setOpen,mF,uDay,cF,dupDay,dDay,di,dov,setDOV,onDS,onDE,onDO,onDr,uTask,aTask,dTask,projNames,team,onAdd};
 
   return<div style={{animation:"fadeIn .3s"}}>
     <div style={{padding:"12px 20px",background:"var(--surface)",borderBottom:"1px solid var(--ink6)",display:"flex",gap:10,flexWrap:"wrap",alignItems:"center"}}>
@@ -458,25 +519,29 @@ function DailyOps({toast,team,onAdd,days,setDays,loaded,syncing,projects,onBacku
       <button onClick={aDay} style={btnP}>+ New Day</button>
     </div>
     <div style={{padding:"16px 20px 60px",display:"flex",flexDirection:"column",gap:14}}>
-      {opsView==="board"?<BoardView/>:<React.Fragment>
-        {recentDays.map(day=><DaySection key={day.id} day={day}/>)}
-        {archiveDays.length>0&&<div>
-          <button onClick={()=>setArchOpen(p=>!p)} style={{display:"flex",alignItems:"center",gap:8,padding:"10px 16px",background:"var(--surface3)",border:"1px solid var(--ink6)",borderRadius:"var(--r)",cursor:"pointer",width:"100%",fontSize:13,fontWeight:600,color:"var(--ink3)"}}>
-            <span style={{fontSize:10,transform:archOpen?"rotate(90deg)":"",transition:"transform .2s",display:"inline-block"}}>▶</span>
-            📦 Archive ({archiveDays.length} older days)
-          </button>
-          {archOpen&&<div style={{display:"flex",flexDirection:"column",gap:10,marginTop:10}}>
-            {archiveDays.map(day=><DaySection key={day.id} day={day}/>)}
+      {opsView==="board"
+        ?<OpsBoard days={days} recentDays={recentDays} boardDay={boardDay} setBoardDay={setBoardDay} mF={mF}/>
+        :<React.Fragment>
+          {recentDays.map(day=><DaySection key={day.id} day={day} {...dayProps}/>)}
+          {archiveDays.length>0&&<div>
+            <button onClick={()=>setArchOpen(p=>!p)} style={{display:"flex",alignItems:"center",gap:8,padding:"10px 16px",background:"var(--surface3)",border:"1px solid var(--ink6)",borderRadius:"var(--r)",cursor:"pointer",width:"100%",fontSize:13,fontWeight:600,color:"var(--ink3)"}}>
+              <span style={{fontSize:10,transform:archOpen?"rotate(90deg)":"",transition:"transform .2s",display:"inline-block"}}>▶</span>
+              📦 Archive ({archiveDays.length} older days)
+            </button>
+            {archOpen&&<div style={{display:"flex",flexDirection:"column",gap:10,marginTop:10}}>
+              {archiveDays.map(day=><DaySection key={day.id} day={day} {...dayProps}/>)}
+            </div>}
           </div>}
-        </div>}
-      </React.Fragment>}
+        </React.Fragment>}
     </div>
   </div>;
 }
 
-/* ═══ LEAD DETAIL FORM (top-level to avoid focus loss) ═══ */
+/* ═══ LEAD DETAIL FORM ═══ */
 function LeadForm({l,uL,acts,aA,uA,dA}){
-  const isOD=l.nextFollowup&&l.nextFollowup<td()&&!["Won","Dead"].includes(l.status);const isDT=l.nextFollowup===td();const lA=(acts||[]).filter(a=>a.leadId===l.id).sort((a,b)=>(b.date||"").localeCompare(a.date||""));
+  const isOD=l.nextFollowup&&l.nextFollowup<td()&&!["Won","Dead"].includes(l.status);
+  const isDT=l.nextFollowup===td();
+  const lA=(acts||[]).filter(a=>a.leadId===l.id).sort((a,b)=>(b.date||"").localeCompare(a.date||""));
   return<div>
     {isOD&&<div style={{padding:"8px 14px",borderRadius:"var(--rs)",background:"var(--red-bg)",border:"1px solid var(--red-bd)",color:"var(--red)",fontSize:12,fontWeight:700,marginBottom:16}}>⚠ Follow-up overdue  -  {Math.abs(dBtw(l.nextFollowup,td()))}d</div>}
     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:14,marginBottom:16}}>
@@ -509,160 +574,4 @@ function LeadForm({l,uL,acts,aA,uA,dA}){
 /* ═══ LEADS TAB ═══ */
 function LeadsTab({toast,leads,setLeads,acts,setActs,loaded,syncing,actsSyncing,meta,setMeta,projects,setProjects}){
   const[view,setView]=useState("cards");const[fS,setFS]=useState("");const[fP,setFP]=useState("");const[fT,setFT]=useState("");const[q,setQ]=useState("");const[exp,setExp]=useState({});
-  const[memoOpen,setMemoOpen]=useState(false);const[modalId,setModalId]=useState(null);
-  const[di,setDI]=useState(null);const[dov,setDOV]=useState(null);
-  const[boardDrag,setBoardDrag]=useState(null);const[boardOver,setBoardOver]=useState(null);const didDrag=useRef(false);
-  if(!loaded||!leads||!acts)return<div style={{padding:40,textAlign:"center",color:"var(--ink4)"}}>Loading...</div>;
-  const wonToProject=lead=>{if(!projects||!setProjects)return;if((projects||[]).some(p=>p.fromLeadId===lead.id)){toast("Project exists");return}setProjects(p=>[...p,{id:uid(),name:lead.job||lead.client||"Won Lead",client:lead.client||"",billing:"Milestone",value:lead.budget||0,hoursEstimated:0,hoursUsed:0,status:"Active",startDate:td(),dueDate:"",teamLead:"",trelloLink:"",niftyLink:"",notes:`From lead ${lead.id}`,fromLeadId:lead.id}]);toast("🏆 Project created!")};
-  const uL=(id,f,v)=>{if(f==="status"&&v==="Won"){const lead=leads.find(l=>l.id===id);if(lead&&lead.status!=="Won")setTimeout(()=>wonToProject({...lead,status:v}),100)}setLeads(p=>p.map(l=>l.id===id?{...l,[f]:v}:l))};
-  const aL=()=>{const n=leads.length+1;setLeads(p=>[...p,{id:`L-${String(n).padStart(3,"0")}`,client:"",job:"",source:"",type:"",budget:0,firstContact:td(),lastContact:td(),nextFollowup:"",status:"New",priority:"Medium",proposalSent:false,leadType:"New Lead",notes:""}]);toast("Lead added")};
-  const dL=id=>{if(confirm("Delete?")){setLeads(p=>p.filter(l=>l.id!==id));setActs(p=>p.filter(a=>a.leadId!==id));toast("Deleted")}};
-  const aA=lid=>{setActs(p=>[{id:uid(),date:td(),leadId:lid||"",type:"Note",summary:"",next:""},...(p||[])]);toast("Activity logged")};
-  const uA=(id,f,v)=>setActs(p=>(p||[]).map(a=>a.id===id?{...a,[f]:v}:a));
-  const dA=id=>setActs(p=>(p||[]).filter(a=>a.id!==id));
-  const cDS=(e,id)=>{setDI(id);e.dataTransfer.effectAllowed="move";e.currentTarget.classList.add("dragging")};
-  const cDE=e=>{e.currentTarget.classList.remove("dragging");setDI(null);setDOV(null)};
-  const cDO=(e,id)=>{e.preventDefault();if(di&&di!==id)setDOV(id)};
-  const cDr=(e,id)=>{e.preventDefault();setDOV(null);if(!di||di===id)return;setLeads(p=>{const a=[...p];const fi=a.findIndex(l=>l.id===di);const ti=a.findIndex(l=>l.id===id);if(fi<0||ti<0)return p;const[m]=a.splice(fi,1);a.splice(ti,0,m);return a});setDI(null);toast("Reordered")};
-  const bDS=(e,id)=>{setBoardDrag(id);didDrag.current=true;e.dataTransfer.effectAllowed="move"};
-  const bDO=(e,s)=>{e.preventDefault();setBoardOver(s)};
-  const bDr=(e,s)=>{e.preventDefault();setBoardOver(null);if(!boardDrag)return;uL(boardDrag,"status",s);setBoardDrag(null);toast(`Moved to ${s}`)};
-  const bClick=id=>{if(didDrag.current){didDrag.current=false;return}setModalId(id)};
-  const mF=l=>{if(fS&&l.status!==fS)return false;if(fP&&l.priority!==fP)return false;if(fT&&(l.leadType||"New Lead")!==fT)return false;if(q){const s=q.toLowerCase();return[l.client,l.job,l.notes,l.id].some(x=>(x||"").toLowerCase().includes(s))}return true};
-  const fl=leads.filter(mF);
-  const active=fl.filter(l=>!["Won","Dead"].includes(l.status));
-  const pipeline=active.reduce((s,l)=>s+(+l.budget||0),0);
-  const weighted=active.reduce((s,l)=>{const x=getLS(l.status);return s+(+l.budget||0)*(x?x.p/100:0)},0);
-  const overdue=fl.filter(l=>l.nextFollowup&&l.nextFollowup<td()&&!["Won","Dead"].includes(l.status));
-  const m=meta||{};const uM=(f,v)=>setMeta(p=>({...(p||{}), [f]:v}));
-  return<div style={{animation:"fadeIn .3s"}}>
-    <div style={{padding:"16px 20px 0",background:"var(--surface)"}}>
-      <div style={{display:"flex",alignItems:"center",gap:14,flexWrap:"wrap",marginBottom:12}}><span style={{fontSize:13,fontWeight:700,color:"var(--ink2)"}}>Last updated on:</span><input type="date" value={m.lastUpdated||""} onChange={e=>uM("lastUpdated",e.target.value)} style={{padding:"8px 12px",border:"1.5px solid var(--ink6)",borderRadius:"var(--rs)",fontSize:13,outline:"none",background:"var(--surface2)",fontFamily:"inherit",color:"var(--ink)"}}/>{m.lastUpdated&&<span style={{fontSize:12,color:"var(--ink3)"}}>{fmtD(m.lastUpdated)}</span>}</div>
-      <div style={{marginBottom:14}}><div onClick={()=>setMemoOpen(p=>!p)} style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",marginBottom:memoOpen?8:0}}><span style={{fontSize:10,color:"var(--ink4)",transform:memoOpen?"rotate(90deg)":"",transition:"transform .2s",display:"inline-block"}}>▶</span><span style={{fontSize:13,fontWeight:700,color:"var(--ink2)"}}>Team's Memo</span>{!memoOpen&&m.memo&&<span style={{fontSize:11,color:"var(--ink4)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:400}}>{m.memo.slice(0,80)}{m.memo.length>80?"...":""}</span>}</div>{memoOpen&&<textarea value={m.memo||""} onChange={e=>uM("memo",e.target.value)} placeholder="Shared team notes..." rows={4} style={{width:"100%",padding:"12px 14px",border:"1.5px solid var(--ink6)",borderRadius:"var(--rs)",fontSize:13,outline:"none",resize:"vertical",fontFamily:"inherit",background:"var(--surface2)",lineHeight:1.5}}/>}</div>
-    </div>
-    <div style={{padding:"0 20px 16px",background:"var(--surface)",borderBottom:"1px solid var(--ink6)"}}>
-      <div style={{display:"flex",gap:10,flexWrap:"wrap",marginBottom:14}}>
-        <KPI label="Active" val={active.length} c="var(--accent2)" bg="var(--accent-light)"/><KPI label="Hot" val={fl.filter(l=>l.status==="Hot").length} c="var(--red)" bg="var(--red-bg)" icon="🔥"/><KPI label="Pipeline" val={fmtM(pipeline)} c="var(--green)" bg="var(--green-bg)"/><KPI label="Weighted" val={fmtM(Math.round(weighted))} c="var(--cyan)" bg="var(--cyan-bg)"/><KPI label="Won" val={fl.filter(l=>l.status==="Won").length} c="var(--green)" bg="var(--green-bg)" icon="🏆"/><KPI label="Overdue" val={overdue.length} c={overdue.length?"var(--red)":"var(--green)"} bg={overdue.length?"var(--red-bg)":"var(--green-bg)"} icon={overdue.length?"⚠":"✓"}/>
-      </div>
-      <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
-        <div style={{display:"flex",background:"var(--surface3)",borderRadius:8,padding:3,gap:2}}>{[["cards","📋 Cards"],["board","◫ Board"],["activity","📝 Activity"]].map(([k,l])=><button key={k} onClick={()=>setView(k)} style={{padding:"7px 14px",borderRadius:6,border:"none",fontSize:12,fontWeight:600,cursor:"pointer",background:view===k?"var(--surface)":"transparent",color:view===k?"var(--ink)":"var(--ink3)",boxShadow:view===k?"0 1px 3px rgba(0,0,0,.06)":"none"}}>{l}</button>)}</div>
-        <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search..." style={{padding:"8px 14px",borderRadius:"var(--r)",border:"1.5px solid var(--ink6)",fontSize:13,width:140,outline:"none",background:"var(--surface2)"}}/>
-        <select value={fS} onChange={e=>setFS(e.target.value)} style={fltSel}><option value="">All Status</option>{LEAD_ST.map(s=><option key={s.v}>{s.v}</option>)}</select>
-        <select value={fP} onChange={e=>setFP(e.target.value)} style={fltSel}><option value="">All Priority</option>{PRIOS.map(p=><option key={p}>{p}</option>)}</select>
-        <select value={fT} onChange={e=>setFT(e.target.value)} style={fltSel}><option value="">All Types</option><option value="New Lead">New Leads</option><option value="Existing Client">Existing Clients</option></select>
-        <div style={{flex:1}}/><Sync s={syncing||actsSyncing}/><button onClick={aL} style={btnP}>+ New Lead</button>
-      </div>
-    </div>
-    <div style={{padding:"16px 20px 60px"}}>
-      {view==="cards"&&<div style={{display:"flex",flexDirection:"column",gap:10}}>
-        {fl.map((l,i)=>{const st=getLS(l.status);const isE=exp[l.id];const isDO=dov===l.id;const wp=st?st.p:0;const aging=dBtw(l.firstContact,td());const isOD=l.nextFollowup&&l.nextFollowup<td()&&!["Won","Dead"].includes(l.status);const lt=l.leadType||"New Lead";
-          return<div key={l.id} draggable onDragStart={e=>cDS(e,l.id)} onDragEnd={cDE} onDragOver={e=>cDO(e,l.id)} onDragLeave={()=>setDOV(null)} onDrop={e=>cDr(e,l.id)} className={isDO?"drag-over":""} style={{background:"var(--surface)",borderRadius:"var(--r)",border:`1.5px solid ${isOD?"var(--red-bd)":"var(--ink6)"}`,overflow:"hidden"}}>
-            <div style={{display:"flex",alignItems:"center",gap:14,padding:"14px 20px",cursor:"pointer",flexWrap:"wrap"}} onClick={()=>setExp(p=>({...p,[l.id]:!p[l.id]}))}>
-              <div className="drag-handle">⠿</div>
-              <div style={{width:10,height:10,borderRadius:99,background:st?st.c:"var(--ink5)",flexShrink:0}}/><span style={{fontSize:11,fontWeight:700,color:"var(--ink4)",fontFamily:"monospace",minWidth:45}}>{l.id}</span>
-              <div style={{flex:"2 1 180px",minWidth:0}}><div style={{fontSize:15,fontWeight:700,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{l.client||"Untitled"}</div><div style={{fontSize:12,color:"var(--ink3)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{l.job||""}</div></div>
-              <span style={{fontSize:9,fontWeight:700,padding:"2px 8px",borderRadius:99,background:lt==="Existing Client"?"var(--purple-bg)":"var(--cyan-bg)",color:lt==="Existing Client"?"var(--purple)":"var(--cyan)",whiteSpace:"nowrap"}}>{lt==="Existing Client"?"EXISTING":"NEW"}</span>
-              <div style={{textAlign:"right",minWidth:60}}><div style={{fontSize:17,fontWeight:800,color:"var(--green)"}}>{l.budget?fmtM(l.budget):""}</div></div>
-              <Badge c={st?st.c:"var(--ink3)"} bg={st?st.bg:"var(--ink7)"} bd={st?st.bd:"var(--ink6)"}>{l.status||" - "}</Badge>
-              <span style={{fontSize:11,fontWeight:700,padding:"3px 10px",borderRadius:99,background:l.priority==="High"?"var(--red-bg)":l.priority==="Medium"?"var(--amber-bg)":"var(--ink7)",color:l.priority==="High"?"var(--red)":l.priority==="Medium"?"var(--amber)":"var(--ink3)"}}>{l.priority}</span>
-              <div style={{textAlign:"center",minWidth:45}}><div style={{fontSize:14,fontWeight:800,color:aging>14?"var(--red)":aging>7?"var(--amber)":"var(--green)"}}>{aging}d</div></div>
-              <span style={{color:"var(--ink5)",fontSize:10,transform:isE?"rotate(180deg)":"",transition:"transform .2s",display:"inline-block"}}>▼</span>
-            </div>
-            {isOD&&!isE&&<div style={{padding:"5px 20px",background:"var(--red-bg)",fontSize:11,fontWeight:700,color:"var(--red)"}}>⚠ Follow-up overdue</div>}
-            {isE&&<div style={{borderTop:"1px solid var(--ink7)",padding:20,background:"var(--surface2)"}}>
-              <LeadForm l={l} uL={uL} acts={acts} aA={aA} uA={uA} dA={dA}/>
-              <div style={{display:"flex",justifyContent:"flex-end"}}><button onClick={()=>dL(l.id)} style={{padding:"6px 16px",borderRadius:"var(--rs)",border:"1.5px solid var(--red-bd)",background:"var(--red-bg)",color:"var(--red)",fontSize:12,fontWeight:700,cursor:"pointer"}}>Delete</button></div>
-            </div>}
-          </div>})}
-      </div>}
-      {view==="board"&&<div style={{display:"flex",gap:10,overflowX:"auto",paddingBottom:20}}>
-        {["New","Proposal Sent","In Discussion","Hot","Warm","Cold","Won","Dead"].map(status=>{const s=getLS(status);const items=fl.filter(l=>l.status===status);const tot=items.reduce((a,l)=>a+(+l.budget||0),0);const isOv=boardOver===status;
-          return<div key={status} className={isOv?"board-col-over":""} onDragOver={e=>bDO(e,status)} onDragLeave={()=>setBoardOver(null)} onDrop={e=>bDr(e,status)} style={{minWidth:210,flex:"1 0 210px",background:"var(--surface)",borderRadius:"var(--r)",border:`1.5px solid ${isOv?"var(--accent)":"var(--ink6)"}`,overflow:"hidden"}}>
-            <div style={{padding:"10px 14px",borderBottom:`2.5px solid ${s?s.bd:"var(--ink6)"}`,background:s?s.bg:"var(--surface2)"}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}><span style={{fontWeight:800,fontSize:13,color:s?s.c:"var(--ink3)"}}>{status}</span><span style={{background:"var(--navy)",color:"#fff",fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:99}}>{items.length}</span></div>{tot>0&&<div style={{fontSize:11,color:"var(--ink3)",marginTop:3,fontWeight:600}}>{fmtM(tot)}</div>}</div>
-            <div style={{padding:8,display:"flex",flexDirection:"column",gap:8,minHeight:80}}>
-              {items.map(l=>{const isOD=l.nextFollowup&&l.nextFollowup<td()&&!["Won","Dead"].includes(l.status);const isDr=boardDrag===l.id;const lt=l.leadType||"New Lead";
-                return<div key={l.id} draggable onDragStart={e=>bDS(e,l.id)} onDragEnd={()=>{setBoardDrag(null);setTimeout(()=>{didDrag.current=false},50)}} onClick={()=>bClick(l.id)} className={`board-card${isDr?" dragging":""}`} style={{background:"var(--surface2)",borderRadius:8,padding:"10px 12px",border:`1px solid ${isOD?"var(--red-bd)":"var(--ink7)"}`}}>
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:3}}><span style={{fontWeight:700,fontSize:13}}>{l.client||" - "}</span><span style={{fontSize:8,fontWeight:700,padding:"1px 5px",borderRadius:99,background:lt==="Existing Client"?"var(--purple-bg)":"var(--cyan-bg)",color:lt==="Existing Client"?"var(--purple)":"var(--cyan)"}}>{lt==="Existing Client"?"EXT":"NEW"}</span></div>
-                  <div style={{fontSize:11,color:"var(--ink3)",marginBottom:6}}>{l.job||""}</div>
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}><span style={{fontSize:14,fontWeight:800,color:"var(--green)"}}>{l.budget?fmtM(l.budget):""}</span><span style={{fontSize:9,fontWeight:700,padding:"2px 7px",borderRadius:99,background:l.priority==="High"?"var(--red-bg)":"var(--ink7)",color:l.priority==="High"?"var(--red)":"var(--ink3)"}}>{l.priority}</span></div>
-                  {isOD&&<div style={{fontSize:10,color:"var(--red)",fontWeight:700,marginTop:4}}>⚠ Overdue</div>}
-                </div>})}
-              {items.length===0&&<div style={{padding:16,textAlign:"center",color:"var(--ink5)",fontSize:11}}>Drop here</div>}
-            </div>
-          </div>})}
-      </div>}
-      {view==="activity"&&<div style={{background:"var(--surface)",borderRadius:"var(--r)",border:"1px solid var(--ink6)",overflow:"hidden"}}>
-        <div style={{padding:"14px 20px",borderBottom:"1px solid var(--ink6)",display:"flex",justifyContent:"space-between",alignItems:"center"}}><span style={{fontWeight:700,fontSize:14}}>Activities  -  {(acts||[]).length}</span><button onClick={()=>aA("")} style={btnP}>+ Log</button></div>
-        <div style={{overflowX:"auto",padding:"8px 16px 16px"}}>
-          <div style={{display:"grid",gridTemplateColumns:"100px 80px 120px 140px 1fr 1fr 30px",gap:10,padding:"8px 0",borderBottom:"2px solid var(--ink7)",minWidth:750}}>{["Date","Lead","Client","Type","Summary","Next",""].map(h=><div key={h} style={{fontSize:10,fontWeight:700,color:"var(--ink4)",textTransform:"uppercase"}}>{h}</div>)}</div>
-          {[...(acts||[])].sort((a,b)=>(b.date||"").localeCompare(a.date||"")).map(a=><div key={a.id} className="row-hover" style={{display:"grid",gridTemplateColumns:"100px 80px 120px 140px 1fr 1fr 30px",gap:10,padding:"5px 0",borderBottom:"1px solid var(--ink7)",alignItems:"center",minWidth:750}}><DtInp value={a.date} onChange={v=>uA(a.id,"date",v)}/><Sel value={a.leadId} onChange={v=>uA(a.id,"leadId",v)} options={leads.map(l=>l.id)} ph=" - "/><span style={{fontSize:12,fontWeight:600}}>{(leads.find(l=>l.id===a.leadId)||{}).client||" - "}</span><Sel value={a.type} onChange={v=>uA(a.id,"type",v)} options={ACT_TYPES} ph="Type..."/><Inp value={a.summary} onChange={v=>uA(a.id,"summary",v)} ph="Summary..."/><Inp value={a.next} onChange={v=>uA(a.id,"next",v)} ph="Next..."/><Del onClick={()=>dA(a.id)}/></div>)}
-        </div>
-      </div>}
-    </div>
-    {modalId&&(()=>{const l=leads.find(x=>x.id===modalId);if(!l)return null;const st=getLS(l.status);
-      return<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.5)",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",padding:20,animation:"fadeIn .2s"}} onClick={e=>{if(e.target===e.currentTarget)setModalId(null)}}>
-        <div style={{background:"var(--surface)",borderRadius:14,width:"100%",maxWidth:720,maxHeight:"90vh",overflow:"auto",boxShadow:"0 24px 80px rgba(0,0,0,.3)"}}>
-          <div style={{padding:"18px 24px",borderBottom:"1px solid var(--ink6)",display:"flex",justifyContent:"space-between",alignItems:"center",position:"sticky",top:0,background:"var(--surface)",zIndex:1,borderRadius:"14px 14px 0 0"}}>
-            <div style={{display:"flex",alignItems:"center",gap:10}}><div style={{width:10,height:10,borderRadius:99,background:st?st.c:"var(--ink5)"}}/><span style={{fontSize:12,fontWeight:700,color:"var(--ink4)",fontFamily:"monospace"}}>{l.id}</span><span style={{fontSize:16,fontWeight:800}}>{l.client||"Untitled"}</span><Badge c={st?st.c:"var(--ink3)"} bg={st?st.bg:"var(--ink7)"} bd={st?st.bd:"var(--ink6)"}>{l.status}</Badge></div>
-            <button onClick={()=>setModalId(null)} style={{width:34,height:34,borderRadius:8,border:"none",background:"var(--ink7)",color:"var(--ink3)",fontSize:18,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
-          </div>
-          <div style={{padding:"20px 24px"}}><LeadForm l={l} uL={uL} acts={acts} aA={aA} uA={uA} dA={dA}/>
-            <div style={{display:"flex",justifyContent:"space-between",paddingTop:8,borderTop:"1px solid var(--ink7)"}}><button onClick={()=>{dL(l.id);setModalId(null)}} style={{padding:"7px 18px",borderRadius:"var(--rs)",border:"1.5px solid var(--red-bd)",background:"var(--red-bg)",color:"var(--red)",fontSize:12,fontWeight:700,cursor:"pointer"}}>Delete</button><button onClick={()=>setModalId(null)} style={btnP}>Done</button></div>
-          </div>
-        </div>
-      </div>;
-    })()}
-  </div>;
-}
-
-/* ═══ MAIN APP ═══ */
-function App(){
-  const[user,setUser]=useState(null);const[ck,setCk]=useState(true);const[tab,setTab]=useState("ops");const[toast,setToast]=useState(null);
-  const st=m=>{setToast(m);setTimeout(()=>setToast(null),2200)};
-  const[days,setDays,opsL,opsS]=useSD("ops",D_OPS);
-  const[leads,setLeads,leadsL,leadsS]=useSD("leads",D_LEADS);
-  const[acts,setActs,actsL,actsS]=useSD("acts",D_ACT);
-  const[team,setTeam,teamL]=useSD("team",DEF_TEAM);
-  const[projects,setProjects,projL,projS]=useSD("projects",D_PROJ);
-  const[pActs,setPActs,pActsL]=useSD("project_acts",D_PACT);
-  const[leadsMeta,setLeadsMeta]=useSD("leads_meta",{lastUpdated:"",memo:""});
-  const[dismissed,setDismissed]=useSD("dismissed",[]);
-  const addM=n=>{if(team&&!team.includes(n)){setTeam(p=>[...p,n].sort());st(`${n} added`)}};
-  useEffect(()=>{sb.auth.getSession().then(({data:{session}})=>{setUser(session&&session.user||null);setCk(false)});const{data:{subscription}}=sb.auth.onAuthStateChange((_,s)=>{setUser(s&&s.user||null)});return()=>subscription.unsubscribe()},[]);
-  const expAll=()=>{const d={ops:days,leads,acts,team,projects,project_acts:pActs,leads_meta:leadsMeta};const b=new Blob([JSON.stringify(d,null,2)],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="niftycode-backup.json";a.click();st("Downloaded")};
-  const doBackup=()=>{const d={ops:days,leads,acts,team,projects,project_acts:pActs,leads_meta:leadsMeta};const b=new Blob([JSON.stringify(d,null,2)],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(b);const ts=fullNowPKT().replace(/T/,"_").replace(/:/g,"-");a.download=`niftycode-auto-backup-${ts}.json`;a.click()};
-  const impAll=()=>{const i=document.createElement("input");i.type="file";i.accept=".json";i.onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=async ev=>{try{const d=JSON.parse(ev.target.result);if(d.ops)setDays(d.ops);if(d.leads)setLeads(d.leads);if(d.acts||d.act)setActs(d.acts||d.act);if(d.team)setTeam(d.team);if(d.projects)setProjects(d.projects);if(d.project_acts)setPActs(d.project_acts);if(d.leads_meta)setLeadsMeta(d.leads_meta);st("Imported!")}catch(e){alert("Invalid")}};r.readAsText(f)};i.click()};
-  if(ck)return<div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"var(--navy)",color:"var(--ink4)",fontSize:14}}>Loading...</div>;
-  if(!user)return<Auth onAuth={setUser}/>;
-  return<div style={{minHeight:"100vh",background:"var(--bg)"}}>
-    <Toast msg={toast}/>
-    <header style={{background:"var(--navy)",padding:"0 20px",position:"sticky",top:0,zIndex:100}}>
-      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",height:54,flexWrap:"wrap",gap:8}}>
-        <div style={{display:"flex",alignItems:"center",gap:10}}><div style={{width:30,height:30,borderRadius:7,background:"linear-gradient(135deg,#3b82f6,#1d4ed8)",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,color:"#fff",fontSize:13}}>N</div><span style={{color:"#fff",fontSize:15,fontWeight:800}}>NiftyCode</span></div>
-        <div style={{display:"flex",background:"rgba(255,255,255,.06)",borderRadius:8,padding:3}}>
-          {[["ops","⚡ Ops"],["projects","📂 Projects"],["leads","🎯 Leads"]].map(([k,l])=><button key={k} onClick={()=>setTab(k)} style={{padding:"8px 16px",borderRadius:6,border:"none",fontSize:12,fontWeight:700,cursor:"pointer",background:tab===k?"var(--accent)":"transparent",color:tab===k?"#fff":"var(--ink4)"}}>{l}</button>)}
-        </div>
-        <div style={{display:"flex",gap:5,alignItems:"center"}}>
-          <NotifBell leads={leads} projects={projects} acts={acts} dismissed={dismissed} setDismissed={setDismissed}/>
-          <span style={{fontSize:10,color:"var(--ink4)",maxWidth:120,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{user.email}</span>
-          <button onClick={expAll} style={hdrBtn}>↓</button>
-          <button onClick={impAll} style={hdrBtn}>↑</button>
-          <button onClick={async()=>{await sb.auth.signOut();setUser(null)}} style={{padding:"5px 12px",borderRadius:6,border:"1px solid rgba(255,255,255,.15)",background:"rgba(255,255,255,.06)",color:"#fff",fontSize:11,fontWeight:700,cursor:"pointer"}}>Out</button>
-        </div>
-      </div>
-    </header>
-    {tab==="ops"&&<DailyOps toast={st} team={team||[]} onAdd={addM} days={days} setDays={setDays} loaded={opsL} syncing={opsS} projects={projects} onBackup={doBackup}/>}
-    {tab==="projects"&&<ProjectsTab toast={st} team={team||[]} onAdd={addM} projects={projects} setProjects={setProjects} loaded={projL} syncing={projS} pActs={pActs} setPActs={setPActs} days={days}/>}
-    {tab==="leads"&&<LeadsTab toast={st} leads={leads} setLeads={setLeads} acts={acts} setActs={setActs} loaded={leadsL&&actsL} syncing={leadsS} actsSyncing={actsS} meta={leadsMeta} setMeta={setLeadsMeta} projects={projects} setProjects={setProjects}/>}
-  </div>;
-}
-
-const btnP={padding:"8px 16px",borderRadius:"var(--rs)",border:"none",background:"var(--accent)",color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer"};
-const hdrBtn={padding:"5px 9px",borderRadius:6,border:"1px solid rgba(255,255,255,.12)",background:"transparent",color:"var(--ink4)",fontSize:11,fontWeight:600,cursor:"pointer"};
-const dayBtn={padding:"4px 9px",borderRadius:"var(--rs)",border:"1px solid rgba(255,255,255,.15)",background:"transparent",color:"var(--ink4)",fontSize:10,fontWeight:600,cursor:"pointer"};
-const fltSel={padding:"8px 28px 8px 10px",borderRadius:"var(--rs)",border:"1.5px solid var(--ink6)",background:"var(--surface2)",color:"var(--ink2)",fontSize:12,fontWeight:500,outline:"none",cursor:"pointer",appearance:"none",backgroundImage:"url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%239ca3af'/%3E%3C/svg%3E\")",backgroundRepeat:"no-repeat",backgroundPosition:"right 8px center"};
-const addTBtn={display:"flex",alignItems:"center",justifyContent:"center",gap:8,padding:10,marginTop:8,background:"var(--surface2)",border:"2px dashed var(--ink6)",borderRadius:"var(--rs)",color:"var(--accent)",fontSize:13,fontWeight:600,cursor:"pointer",transition:"all .15s",width:"100%"};
-ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
-</script>
-</body>
-</html>
+  const[memoOpen,setMemoOpen]=useSt
