@@ -38,9 +38,9 @@ const SB_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZ
 const sb=window.supabase.createClient(SB_URL,SB_KEY);
 
 function useSD(key,def){
-  const[d,setD]=useState(null);const[ld,setLd]=useState(false);const[sy,setSy]=useState(false);const t=useRef(null);const f=useRef(true);
-  useEffect(()=>{let c=false;(async()=>{try{const{data:r,error}=await sb.from("shared_store").select("value").eq("key",key).maybeSingle();if(c)return;if(error){setD(def);setLd(true);return}if(r&&r.value!=null)setD(r.value);else{setD(def);await sb.from("shared_store").upsert({key,value:def})}}catch(e){setD(def)}if(!c)setLd(true)})();return()=>{c=true}},[key]);
-  useEffect(()=>{if(!ld||d==null)return;if(f.current){f.current=false;return}if(t.current)clearTimeout(t.current);t.current=setTimeout(async()=>{setSy(true);await sb.from("shared_store").upsert({key,value:d});setSy(false)},800);return()=>{if(t.current)clearTimeout(t.current)}},[d,ld]);
+  const[d,setD]=useState(null);const[ld,setLd]=useState(false);const[sy,setSy]=useState(false);const t=useRef(null);const ready=useRef(false);
+  useEffect(()=>{let c=false;(async()=>{try{const{data:r,error}=await sb.from("shared_store").select("value").eq("key",key).maybeSingle();if(c)return;if(!error&&r&&r.value!=null){setD(r.value)}else{setD(def);await sb.from("shared_store").upsert({key,value:def})}}catch(e){setD(def)}ready.current=true;if(!c)setLd(true)})();return()=>{c=true}},[key]);
+  useEffect(()=>{if(!ld||d==null||!ready.current)return;if(t.current)clearTimeout(t.current);t.current=setTimeout(async()=>{setSy(true);await sb.from("shared_store").upsert({key,value:d});setSy(false)},1200);return()=>{if(t.current)clearTimeout(t.current)}},[d,ld]);
   return[d,setD,ld,sy];
 }
 
@@ -353,10 +353,10 @@ function DailyOps({toast,team,onAdd,days,setDays,loaded,syncing,projects}){
   const mF=t=>{if(fM&&t.member!==fM)return false;if(fS&&t.status!==fS)return false;if(q){const s=q.toLowerCase();return[t.project,t.linkedProject,t.desc1,t.desc2,t.member].some(x=>(x||"").toLowerCase().includes(s))}return true};
   const projNames=(projects||[]).filter(p=>p.status==="Active");
 
-  /* Split: last 7 days vs archive */
-  const cutoff=new Date();cutoff.setDate(cutoff.getDate()-7);const cutStr=cutoff.toISOString().slice(0,10);
-  const recentDays=days.filter(d=>!d.date||d.date>=cutStr);
-  const archiveDays=days.filter(d=>d.date&&d.date<cutStr);
+  /* Split: most recent 7 day entries vs archive */
+  const sortedDays=[...days].sort((a,b)=>(b.date||"").localeCompare(a.date||""));
+  const recentDays=sortedDays.slice(0,7);
+  const archiveDays=sortedDays.slice(7);
 
   /* Sort tasks by linked project within a day */
   const sortByProj=(tasks)=>{const sorted=[...tasks];sorted.sort((a,b)=>{const ap=(a.linkedProject||"zzz").toLowerCase();const bp=(b.linkedProject||"zzz").toLowerCase();return ap.localeCompare(bp)});return sorted};
